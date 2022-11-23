@@ -1,0 +1,12 @@
+---
+title: "Stat4Race"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+Look at colab [link](https://colab.research.google.com/drive/1CMkKzX2K0-l90rAZXl9V1RST_YEOKAzr?usp=sharing)
+
+I will transfer this here later, but the performances must be measured on colab nonetheless.
