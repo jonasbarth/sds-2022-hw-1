@@ -4,3 +4,39 @@ output: html_document
 date: "2022-11-20"
 author: "Jonas Barth, Mattia Castaldo, Matteo Migliarini"
 ---
+
+```{r}
+install.packages('VGAM')
+library('VGAM')
+```
+
+
+## Create Perturbed Histogram
+```{r}
+n = 100
+eps = 0.1
+m = 5
+
+# Sample from original distribution
+b_sample = rbeta(n=n, 10, 10)
+
+v = hist(b_sample, plot=F, breaks=m-1, prob=T)
+
+lap_sample = rlaplace(length(v$counts), 0, 8 / (eps^2))
+
+# Perturbe the original distribution
+v$counts
+v$counts = v$counts + lap_sample
+v$counts[v$counts <= 0] = 0
+
+v$density = v$counts / sum(v$counts)
+v$density
+```
+
+
+## Plot Perturbed Histogram
+```{r}
+# TODO plot the density and NOT the counts!
+plot(v)
+```
+
