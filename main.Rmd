@@ -1,0 +1,87 @@
+---
+title: "main"
+output: html_document
+date: "2022-11-20"
+author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
+---
+
+```{r}
+install.packages('VGAM')
+library('VGAM')
+```
+## Hyperparameters
+```{r}
+n = 100
+eps = 0.1
+m = n^(1 / (2 + 1))
+```
+
+
+
+## Original Histogram
+```{r}
+b_sample = rbeta(n=n, 10, 10)
+
+original_hist = hist(b_sample, plot=F, breaks=m-1, prob=T)
+
+plot(original_hist)
+```
+
+
+## Create Perturbed Histogram
+```{r}
+
+l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.01 ^ 2)) {
+    perturbed_hist = h
+    lap_sample = rlaplace(length(perturbed_hist$counts), location = l_mean, scale = l_scale)
+    
+    # Add the laplace sample to D_j
+    perturbed_hist$counts = perturbed_hist$counts + lap_sample
+    
+    # If we end up with a negative number, we choose 0 instead. Same as max(0, D_j)
+    perturbed_hist$counts[perturbed_hist$counts <= 0] = 0
+
+    # Normalise D_j over the sum of all bins
+    perturbed_hist$counts = perturbed_hist$counts / sum(perturbed_hist$counts)
+    
+    # Also update the density
+    perturbed_hist$density = perturbed_hist$counts / sum(perturbed_hist$counts)
+    
+    return(perturbed_hist)
+}
+
+
+perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
+plot(perturbed_hist)
+```
+
+## Density Function for histogram
+```{r}
+d_hist = function(x, h) {
+    densities = vector(length = length(x))
+    for (i in 1:length(x)) {
+        val = x[i]
+        
+        if (val < min(h$breaks) || val > max(h$breaks)) 
+            densities[i] = 0
+    
+        for(j in 1:(length(h$breaks)-1)){
+            if (val > h$breaks[j] && val <= h$breaks[j+1])
+                densities[i] = h$density[j]
+        }
+    }
+    return(densities)
+}
+```
+
+## MISE between the true model and the original histogram
+```{r}
+mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, original_hist))^2, 0, 1)
+```
+
+## MISE between the true model and the privatized histogram
+```{r}
+mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2, 0, 1)
+```
+
+
