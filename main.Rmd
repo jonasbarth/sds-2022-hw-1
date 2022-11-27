@@ -9,6 +9,7 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
 install.packages('VGAM')
 library('VGAM')
 ```
+
 ## Hyperparameters
 ```{r}
 n = 100
