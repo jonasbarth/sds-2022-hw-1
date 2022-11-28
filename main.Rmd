@@ -81,8 +81,29 @@ mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, original_his
 ```
 
 ## MISE between the true model and the privatized histogram
+$$\mathbb{E}_{P_X, Q}(r(Z_1,...,Z_k)) = \int \left( \int r(z_1,...,z_k)dQ(z_1,...,z_k | x_1,...,x_k) \right )dP_X(x_1)...dP_X(x_n)$$
 ```{r}
 mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2, 0, 1)
+```
+
+
+## Figure out dQ in the integral
+$$dQ(z_1,...,z_k | x_1,...,x_k)$$
+```{r}
+# for each sample in b_sample, find the bin it falls into in the perturbed histogram and get the density of that bin.
+dQ = vector(length = length(b_sample))
+
+for (i in 1:length(b_sample)) {
+    dQ[i] = b_sample[i] * d_hist(b_sample[i], perturbed_hist)
+}
+
+```
+
+```{r}
+# create a function that integrates the inner integral
+inner = function(x) {
+    
+}
 ```
 
 
