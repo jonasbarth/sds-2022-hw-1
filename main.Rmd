@@ -99,11 +99,17 @@ for (i in 1:length(b_sample)) {
 
 ```
 
+## Create a function that integrates the inner integral
+$$\int r(z_1,...,z_k)dQ(z_1,...,z_k | x_1,...,x_k)$$
 ```{r}
-# create a function that integrates the inner integral
 inner = function(x) {
-    
+    integrate(function(x) ((dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2) * dQ, 0, 1)
 }
+```
+
+## Integrate the entire function
+```{r}
+integrate(function(x) (inner(x) * dbeta(x, 10, 10)), 0, 1)
 ```
 
 
