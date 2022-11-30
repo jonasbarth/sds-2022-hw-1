@@ -23,7 +23,7 @@ m = n^(1 / (2 + 1))
 ```{r}
 b_sample = rbeta(n=n, 10, 10)
 
-original_hist = hist(b_sample, plot=F, breaks=m-1, prob=T)
+original_hist = hist(b_sample, plot=F, breaks=m-1)
 
 plot(original_hist)
 ```
@@ -45,8 +45,8 @@ l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.01 ^ 2)) {
     # Normalise D_j over the sum of all bins
     perturbed_hist$counts = perturbed_hist$counts / sum(perturbed_hist$counts)
     
-    # Also update the density
-    perturbed_hist$density = perturbed_hist$counts / sum(perturbed_hist$counts)
+    # Also update the density, divide q_hat by 1/m
+    perturbed_hist$density = perturbed_hist$counts / (1 / m)
     
     return(perturbed_hist)
 }
@@ -60,6 +60,7 @@ plot(perturbed_hist)
 ```{r}
 d_hist = function(x, h) {
     densities = vector(length = length(x))
+    
     for (i in 1:length(x)) {
         val = x[i]
         
@@ -81,35 +82,8 @@ mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, original_his
 ```
 
 ## MISE between the true model and the privatized histogram
-$$\mathbb{E}_{P_X, Q}(r(Z_1,...,Z_k)) = \int \left( \int r(z_1,...,z_k)dQ(z_1,...,z_k | x_1,...,x_k) \right )dP_X(x_1)...dP_X(x_n)$$
 ```{r}
 mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2, 0, 1)
-```
-
-
-## Figure out dQ in the integral
-$$dQ(z_1,...,z_k | x_1,...,x_k)$$
-```{r}
-# for each sample in b_sample, find the bin it falls into in the perturbed histogram and get the density of that bin.
-dQ = vector(length = length(b_sample))
-
-for (i in 1:length(b_sample)) {
-    dQ[i] = b_sample[i] * d_hist(b_sample[i], perturbed_hist)
-}
-
-```
-
-## Create a function that integrates the inner integral
-$$\int r(z_1,...,z_k)dQ(z_1,...,z_k | x_1,...,x_k)$$
-```{r}
-inner = function(x) {
-    integrate(function(x) ((dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2) * dQ, 0, 1)
-}
-```
-
-## Integrate the entire function
-```{r}
-integrate(function(x) (inner(x) * dbeta(x, 10, 10)), 0, 1)
 ```
 
 
