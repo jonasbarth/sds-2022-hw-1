@@ -12,7 +12,7 @@ library('VGAM')
 
 ## Hyperparameters
 ```{r}
-n = 1000
+n = 100
 eps = 0.1
 m = n^(1 / (2 + 1))
 ```
@@ -58,27 +58,6 @@ plot(perturbed_hist)
 
 ```
 
-
-## Density Function for histogram
-```{r}
-d_hist = function(x, h) {
-    densities = vector(length = length(x))
-    
-    for (i in 1:length(x)) {
-        val = x[i]
-        
-        if (val < min(h$breaks) || val > max(h$breaks)) 
-            densities[i] = 0
-    
-        for(j in 1:(length(h$breaks)-1)){
-            if (val > h$breaks[j] && val <= h$breaks[j+1])
-                densities[i] = h$density[j]
-        }
-    }
-    return(densities)
-}
-```
-
 ## MISE between the true model and the original histogram
 ```{r}
 mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, original_hist))^2, 0, 1)
@@ -98,35 +77,49 @@ bins_values = seq(5, 50, 5)
 M = 100
 out = data.frame()
 
+mise_sim = function(n, n_bins, eps, sim_size) {
+    
+    out = data.frame()
+    
+    for (m in 1:sim_size) {
+        # sample from beta
+        b_sample = rbeta(n=n, 10, 10)
+
+        # create original hist
+        original_hist = hist(b_sample, plot=F, breaks=n_bins - 1)
+        
+        d_original = stepfun(original_hist$breaks, c(0, original_hist$density, 0))
+
+        # create perturbed hist
+        perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
+        
+        d_perturbed = stepfun(perturbed_hist$breaks, c(0, perturbed_hist$density, 0))
+        
+        # calculate mise original
+        mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_original(x))^2, 0, 1, subdivisions = 500)$value
+
+        # calculate mise perturbed
+        mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_perturbed(x))^2, 0, 1, subdivisions = 500)$value
+        
+        out = rbind(out, data.frame(m=m, n=n, eps=eps, bins=n_bins, mise_original=mise_original, mise_perturbed=mise_perturbed))
+    }
+    
+    return(out)
+}
+
+
+out = data.frame()
+
 for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
-            
-            for (m in 1:M) {
-                # sample from beta
-                b_sample = rbeta(n=n, 10, 10)
-    
-                # create original hist
-                original_hist = hist(b_sample, plot=F, breaks=n_bins - 1)
-    
-                # create perturbed hist
-                perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
-                
-                # calculate mise original
-                mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, original_hist))^2, 0, 1, subdivisions = 2000)$value
-    
-                # calculate mise perturbed
-                mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2, 0, 1, subdivisions = 2000)$value
-                
-                out = rbind(out, data.frame(m=m, n=n, eps=eps, bins=n_bins, mise_original=mise_original, mise_perturbed=mise_perturbed))
-            }
-            
+            sim_result = mise_sim(n, n_bins, eps, sim_size = 1)
+            out = rbind(out, sim_result)
         }
     }
 }
 
 out
 ```
-
 
 
