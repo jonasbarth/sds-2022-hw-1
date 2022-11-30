@@ -7,7 +7,13 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
 
 ```{r}
 install.packages('VGAM')
+install.packages('ggplot2')
+install.packages('tidyverse')
+install.packages("dplyr")
 library('VGAM')
+library('ggplot2')
+library('tidyverse')
+library('dplyr')
 ```
 
 ## Hyperparameters
@@ -96,10 +102,10 @@ mise_sim = function(n, n_bins, eps, sim_size) {
         d_perturbed = stepfun(perturbed_hist$breaks, c(0, perturbed_hist$density, 0))
         
         # calculate mise original
-        mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_original(x))^2, 0, 1, subdivisions = 500)$value
+        mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_original(x))^2, 0, 1, subdivisions = 1000)$value
 
         # calculate mise perturbed
-        mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_perturbed(x))^2, 0, 1, subdivisions = 500)$value
+        mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_perturbed(x))^2, 0, 1, subdivisions = 1000)$value
         
         out = rbind(out, data.frame(m=m, n=n, eps=eps, bins=n_bins, mise_original=mise_original, mise_perturbed=mise_perturbed))
     }
@@ -113,7 +119,7 @@ out = data.frame()
 for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
-            sim_result = mise_sim(n, n_bins, eps, sim_size = 1)
+            sim_result = mise_sim(n, n_bins, eps, sim_size = M)
             out = rbind(out, sim_result)
         }
     }
@@ -122,4 +128,34 @@ for (n in n_values) {
 out
 ```
 
+## Plotting
+```{r}
+out$mise_diff = abs(out$mise_original - out$mise_perturbed)
+
+data_group <- out %>%                                 # Group data
+  group_by(eps, n, bins) %>%
+  dplyr::summarize(mise_mean = mean(mise_diff), mise_min = min(mise_diff), mise_max = max(mise_diff)) %>% 
+  as.data.frame()
+data_group 
+
+
+# n = 100, eps = 0.1
+data1 = subset(data_group, data_group$n == 100 & data_group$eps == 0.1)
+
+# n = 100, eps = 0.001
+data2 = subset(data_group, data_group$n == 100 & data_group$eps == 0.001)
+
+# n = 1000, eps = 0.1
+data3 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.1)
+
+# n = 1000, eps = 0.001
+data4 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.001)
+```
+
+```{r}
+h = ggplot(data1, aes(bins))
+h +
+    geom_ribbon(aes(ymin = mise_min, ymax = mise_max), fill = "grey70") +
+    geom_line(aes(y = data4$mise_mean))
+```
 
