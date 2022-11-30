@@ -153,9 +153,11 @@ data4 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.001)
 ```
 
 ```{r}
-h = ggplot(data1, aes(bins))
+h = ggplot(data1, aes(data1$bins))
 h +
-    geom_ribbon(aes(ymin = mise_min, ymax = mise_max), fill = "grey70") +
-    geom_line(aes(y = data4$mise_mean))
+    geom_ribbon(aes(ymin = data1$mise_min, ymax = data1$mise_max), fill = "grey70", alpha = 0.3) +
+    geom_line(aes(y = data1$mise_mean)) +
+    geom_ribbon(aes(ymin = data2$mise_min, ymax = data2$mise_max), fill = "grey60", alpha = 0.3) +
+    geom_line(aes(y = data2$mise_mean))
 ```
 
