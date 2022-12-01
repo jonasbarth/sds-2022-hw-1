@@ -5,20 +5,27 @@ date: "2022-11-20"
 author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
 ---
 
+# 2. Differential Privacy
+
+# 2.1 Univariate Differential Privacy
+
+Index
+
+-   [Simulation](#simulation)
+-   [Plotting](#plotting)
+
 ```{r}
 install.packages('VGAM') # for sampling from a laplace
-install.packages('ggplot2')
-install.packages('tidyverse')
 install.packages("dplyr") # for using group by on the data from the simulation
 install.packages("colorspace") # for plotting
+install.packages("latex2exp") # for expressions in plots
 ```
 
 ```{r}
 library('VGAM')
-library('ggplot2')
-library('tidyverse')
 library('dplyr')
 library('colorspace')
+library('latex2exp')
 ```
 
 ## Hyperparameters
@@ -69,7 +76,7 @@ plot(perturbed_hist)
 
 ```
 
-## Simulation
+## Simulation {#simulation}
 
 ### Hyperparameters
 
@@ -128,10 +135,15 @@ mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10,10)) 
 
 ```{r}
 save(out, file = "simulation.Rda")
+
+out
+data1
 ```
 
 ### Running the Simulation
+
 We run the simulation $M$ times for all possible hyperparameter combinations. The results are saved into a dataframe.
+
 ```{r}
 sim_data = data.frame()
 
@@ -139,98 +151,151 @@ for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
             sim_result = mise_sim(n, n_bins, eps, sim_size = M)
-            sim_data = rbind(out, sim_result)
+            sim_data = rbind(sim_data, sim_result)
         }
     }
 }
 
 ```
 
-## Preparing Data for Plotting
-We want to show how the absolute difference between the two calculated $MISE$ values varies across the different combinations of hyper parameters.
 ```{r}
+sim_data
+```
+
+## Plotting
+
+### Absolute MISE Differences
+
+We want to show how the absolute difference between the two calculated $MISE$ values varies across the different combinations of hyper parameters.
+
+#### Preparing Data for Plotting
+
+There are 3 steps in the data preparation process:
+
+1.  Calculate the absolute difference between the two $MISE$ values.
+2.  Group the data by epsilon value, sample size (n), and number of bins.
+3.  Get a subset for each possible (sample size, epsilon) pair. Four in total.
+
+```{r}
+
+# 1. absolute difference
 sim_data$mise_diff = abs(sim_data$mise_original - sim_data$mise_perturbed)
 
-data_group <- sim_data %>%                                 # Group data
+# 2. group data
+data_group <- sim_data %>%                                 
   group_by(eps, n, bins) %>%
-  dplyr::summarize(mise_mean = mean(mise_diff), mise_min = min(mise_diff), mise_max = max(mise_diff)) %>% 
+  dplyr::summarize(mise_diff_mean = mean(mise_diff), 
+                   mise_diff_min = min(mise_diff), 
+                   mise_diff_max = max(mise_diff),
+                   mise_original_mean = mean(mise_original),
+                   mise_original_min = min(mise_original),
+                   mise_original_max = max(mise_original),
+                   mise_perturbed_mean = mean(mise_perturbed),
+                   mise_perturbed_min = min(mise_perturbed),
+                   mise_perturbed_max = max(mise_perturbed)) %>% 
   as.data.frame()
 data_group
 
 
-# n = 100, eps = 0.1
+# 3. Get subsets.
 data1 = subset(data_group, data_group$n == 100 & data_group$eps == 0.1)
-
-# n = 100, eps = 0.001
 data2 = subset(data_group, data_group$n == 100 & data_group$eps == 0.001)
-
-# n = 1000, eps = 0.1
 data3 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.1)
-
-# n = 1000, eps = 0.001
 data4 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.001)
 ```
 
-## Plotting with ggplot
+#### Parameters for plotting
 
 ```{r}
-h = ggplot(data1, aes(data1$bins))
-h + 
-    geom_ribbon(aes(ymin = data1$mise_min, ymax = data1$mise_max), fill = "#32a852", alpha = 0.3) +
-    geom_line(aes(y = data1$mise_mean)) +
-    geom_ribbon(aes(ymin = data2$mise_min, ymax = data2$mise_max), fill = "grey60", alpha = 0.3) +
-    geom_line(aes(y = data2$mise_mean)) +
-    geom_ribbon(aes(ymin = data3$mise_min, ymax = data3$mise_max), fill = "grey50", alpha = 0.3) +
-    geom_line(aes(y = data3$mise_mean)) +
-    geom_ribbon(aes(ymin = data4$mise_min, ymax = data4$mise_max), fill = "grey40", alpha = 0.3) +
-    geom_line(aes(y = data4$mise_mean))
-```
-
-## Plotting with standard R
-
-```{r}
-
 colours = rainbow_hcl(4)
 lwd = 4
 legend_names = c("n = 100, eps = 0.1", "n = 100, eps = 0.001", "n = 1000, eps = 0.1", "n = 1000, eps = 0.001")
+```
 
+#### Plot for MISE Differences
+
+The plot below shows the absolute differences between the MISE value for the original histogram and the MISE value for the perturbed histogram.
+
+$$|MISE(p_X, \hat{p}_{n,m}) - MISE(p_X, \hat{q}_{\epsilon, m})|$$
+
+Each line in the plot represents the absolute MISE difference for a specific combination of the number of samples from the Beta distribution $n$ and the privacy value epsilon $\epsilon$, averaged over $M$ simulations.
+
+From the plot we can see that, as the number of bins increase, the MISE difference convergence seems to happen independently of the value for epsilon. For the smaller sample size $n = 100$, this happens around a number of bins $m = 25$. For the larger sample size $n = 1000$, this happens earlier around the number of bins $m = 10$.
+
+This could be explained by the fact that smaller sample sizes are less likely to capture the necessary variance which is more likely to result in a skewed histogram when it has few bins.
+
+```{r}
 plot(NULL,
      xlim = c(min(bins_values), max(bins_values)),
-     ylim = c(min(data_group$mise_mean), max(data_group$mise_mean)),
+     ylim = c(min(data_group$mise_diff_mean), max(data_group$mise_diff_mean)),
      ylab = "Mean MISE Differences",
      xlab = "Number of bins",
-     main = paste("Mean MISE Differences over", M, "Simulations"))
-lines(data1$bins, data1$mise_mean, type = "l", lwd = lwd, col = colours[1])
-lines(data2$bins, data2$mise_mean, type = "l", lwd = lwd, col = colours[2])
-lines(data3$bins, data3$mise_mean, type = "l", lwd = lwd, col = colours[3])
-lines(data4$bins, data4$mise_mean, type = "l", lwd = lwd, col = colours[4])
+     main = paste("Mean MISE differences over", M, "simulations"))
+lines(data1$bins, data1$mise_diff_mean, type = "l", lwd = lwd, col = colours[1])
+lines(data2$bins, data2$mise_diff_mean, type = "l", lwd = lwd, col = colours[2])
+lines(data3$bins, data3$mise_diff_mean, type = "l", lwd = lwd, col = colours[3])
+lines(data4$bins, data4$mise_diff_mean, type = "l", lwd = lwd, col = colours[4])
 legend("topright", 
        legend=legend_names,
        col = colours,
        lwd = lwd)
 ```
 
+### Original Mise Variation
+
+In these 4 plots we see the average: \* MISE value for the original histogram. \* MISE value for the perturbed histogram. \* Absolute difference between the MISE for the original histogram and MISE for the perturbed histogram.
+
+The absolute differences shown in the 4 plots correspond to the lines in the previous plot. By also plotting the MISE values for the original and perturbed histogram, we can compare them easier than if we had just plotted the absolute difference. For example, for a sample size $n = 1000$, we can see that the original MISE is close to $0$ whereas the MISE of the perturbed stabilises around $2$.
+
 ```{r}
+line_colours = rainbow_hcl(3)
+
+plot_mise_values = function(mise_data, main, sub, colours) {
+  
+  max_y = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean, mise_data$mise_diff_mean))
+  plot(NULL,
+     xlim = c(min(bins_values), max(bins_values)),
+     ylim = c(0, max_y),
+     ylab = "MISE",
+     xlab = "Number of bins",
+     main = main,
+     sub = sub)
+  lines(mise_data$bins, mise_data$mise_original_mean, type = "l", lwd = 2, col = colours[1])
+  lines(mise_data$bins, mise_data$mise_perturbed_mean, type = "l", lwd = 2, col = colours[2])
+  lines(mise_data$bins, mise_data$mise_diff_mean, type = "l", lwd = 2, col = colours[3])
+}
+
+par(mfrow=c(2, 2))
+plot_mise_values(data1, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.1.", line_colours)
+plot_mise_values(data2, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.001.", line_colours)
+plot_mise_values(data3, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.1", line_colours)
+plot_mise_values(data4, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.001.", line_colours)
+?par
+
+legend("bottom",
+         legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m})$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m})$"), TeX("$|(MISE(p_X, \\hat{p}_{n,m}) - MISE(p_X, \\hat{q}_{\\epsilon, m})|$")),
+          col = colours,
+         lwd = 2, xpd = TRUE, horiz = TRUE, cex = 1, seg.len=2)
 
 ```
 
-
 # 2.2 Samplng from a different distribution
-We now sample from:
-$$
+
+We now sample from: $$
 p_X(x) = \pi \cdot \text{dbeta}(x | \alpha_1, \beta_1) + (1 -\pi )\cdot \text{dbeta}(x | \alpha_2, \beta_2)
 $$
+
 ```{r}
 func = function(n, pi =.5) pi * rbeta(n,.5,.3) + (1 - pi) * rbeta(n,.5,.1)
 h=hist(func(1000), plot=F)
 plot(h, main='Density of p[X]',xlab = '')
 ```
+
 ```{r}
 h_perturbed=l_perturbe(h)
 
 plot(h_perturbed, main='Perturbed Histogram of p[X]', xlab='')
 ```
-
 
 ```{r}
 pi_values<-c(.25,.5,.75)
@@ -250,4 +315,3 @@ for (n in n_values) {
 
 out_new
 ```
-
