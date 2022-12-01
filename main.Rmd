@@ -6,11 +6,14 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
 ---
 
 ```{r}
-install.packages('VGAM')
+install.packages('VGAM') # for sampling from a laplace
 install.packages('ggplot2')
 install.packages('tidyverse')
-install.packages("dplyr")
-install.packages("colorspace")
+install.packages("dplyr") # for using group by on the data from the simulation
+install.packages("colorspace") # for plotting
+```
+
+```{r}
 library('VGAM')
 library('ggplot2')
 library('tidyverse')
@@ -68,65 +71,87 @@ plot(perturbed_hist)
 
 ## Simulation
 
+### Hyperparameters
+
 ```{r}
 n_values = c(100,1000)
 eps_values = c(0.1, 0.001)
 bins_values = seq(5, 50, 5)
+M = 1000
+```
 
-M = 100
-out = data.frame()
+### Function for running simulations with fixed hyperparameters
 
+At each simulation, we do the following:
+
+1.  Sample from the beta distribution.
+2.  Create a histogram from the sample.
+3.  Perturb the histogram.
+4.  Calculate the $MISE(p_X, \hat{p}_{n, m})$.
+5.  Calculate the $MISE(p_X, \hat{q}_{\epsilon, m})$.
+6.  Save the $MISE$ values and hyperparameters of this simulation run into a dataframe.
+
+```{r}
 mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10,10)) {
     
     out = data.frame()
     
     for (m in 1:sim_size) {
-        # sample from beta
+
+        # 1. sample from beta
         b_sample = dist(n=n)
 
-        # create original hist
+        # 2. create original hist
         original_hist = hist(b_sample, plot=F, breaks=n_bins - 1)
         
         d_original = stepfun(original_hist$breaks, c(0, original_hist$density, 0))
 
-        # create perturbed hist
+        # 3. create perturbed hist
         perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
         
         d_perturbed = stepfun(perturbed_hist$breaks, c(0, perturbed_hist$density, 0))
         
-        # calculate mise original
+        # 4. calculate mise original
         mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_original(x))^2, 0, 1, subdivisions = 1000)$value
 
-        # calculate mise perturbed
+        # 5. calculate mise perturbed
         mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_perturbed(x))^2, 0, 1, subdivisions = 1000)$value
         
+        # 6. save the MISE values and hyperparameters
         out = rbind(out, data.frame(m=m, n=n, eps=eps, bins=n_bins, mise_original=mise_original, mise_perturbed=mise_perturbed))
     }
     
     return(out)
 }
 
+```
 
-out = data.frame()
+```{r}
+save(out, file = "simulation.Rda")
+```
+
+### Running the Simulation
+We run the simulation $M$ times for all possible hyperparameter combinations. The results are saved into a dataframe.
+```{r}
+sim_data = data.frame()
 
 for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
             sim_result = mise_sim(n, n_bins, eps, sim_size = M)
-            out = rbind(out, sim_result)
+            sim_data = rbind(out, sim_result)
         }
     }
 }
 
-out
 ```
 
-## Plotting
-
+## Preparing Data for Plotting
+We want to show how the absolute difference between the two calculated $MISE$ values varies across the different combinations of hyper parameters.
 ```{r}
-out$mise_diff = abs(out$mise_original - out$mise_perturbed)
+sim_data$mise_diff = abs(sim_data$mise_original - sim_data$mise_perturbed)
 
-data_group <- out %>%                                 # Group data
+data_group <- sim_data %>%                                 # Group data
   group_by(eps, n, bins) %>%
   dplyr::summarize(mise_mean = mean(mise_diff), mise_min = min(mise_diff), mise_max = max(mise_diff)) %>% 
   as.data.frame()
@@ -147,6 +172,7 @@ data4 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.001)
 ```
 
 ## Plotting with ggplot
+
 ```{r}
 h = ggplot(data1, aes(data1$bins))
 h + 
@@ -161,25 +187,31 @@ h +
 ```
 
 ## Plotting with standard R
+
 ```{r}
 
 colours = rainbow_hcl(4)
 lwd = 4
+legend_names = c("n = 100, eps = 0.1", "n = 100, eps = 0.001", "n = 1000, eps = 0.1", "n = 1000, eps = 0.001")
 
 plot(NULL,
      xlim = c(min(bins_values), max(bins_values)),
      ylim = c(min(data_group$mise_mean), max(data_group$mise_mean)),
      ylab = "Mean MISE Differences",
      xlab = "Number of bins",
-     main = "Mean MISE Differences over 100 Simulations")
+     main = paste("Mean MISE Differences over", M, "Simulations"))
 lines(data1$bins, data1$mise_mean, type = "l", lwd = lwd, col = colours[1])
 lines(data2$bins, data2$mise_mean, type = "l", lwd = lwd, col = colours[2])
 lines(data3$bins, data3$mise_mean, type = "l", lwd = lwd, col = colours[3])
 lines(data4$bins, data4$mise_mean, type = "l", lwd = lwd, col = colours[4])
 legend("topright", 
-       legend=c("n = 100, eps = 0.1", "n = 100, eps = 0.001", "n = 1000, eps = 0.1", "n = 1000, eps = 0.001"), 
+       legend=legend_names,
        col = colours,
-       lwd = 4)
+       lwd = lwd)
+```
+
+```{r}
+
 ```
 
 
@@ -189,7 +221,7 @@ $$
 p_X(x) = \pi \cdot \text{dbeta}(x | \alpha_1, \beta_1) + (1 -\pi )\cdot \text{dbeta}(x | \alpha_2, \beta_2)
 $$
 ```{r}
-func = function(n, pi =.5) pi * rbeta(n,.5,.3) + (1 - pi) * rbeta(n,.5,.1) 
+func = function(n, pi =.5) pi * rbeta(n,.5,.3) + (1 - pi) * rbeta(n,.5,.1)
 h=hist(func(1000), plot=F)
 plot(h, main='Density of p[X]',xlab = '')
 ```
