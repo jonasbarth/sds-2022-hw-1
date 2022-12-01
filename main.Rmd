@@ -10,22 +10,24 @@ install.packages('VGAM')
 install.packages('ggplot2')
 install.packages('tidyverse')
 install.packages("dplyr")
+install.packages("colorspace")
 library('VGAM')
 library('ggplot2')
 library('tidyverse')
 library('dplyr')
+library('colorspace')
 ```
 
 ## Hyperparameters
+
 ```{r}
 n = 100
 eps = 0.1
 m = n^(1 / (2 + 1))
 ```
 
-
-
 ## Original Histogram
+
 ```{r}
 b_sample = rbeta(n=n, 10, 10)
 
@@ -34,8 +36,8 @@ original_hist = hist(b_sample, plot=F, breaks=m-1)
 plot(original_hist)
 ```
 
-
 ## Create Perturbed Histogram
+
 ```{r}
 
 l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
@@ -65,16 +67,19 @@ plot(perturbed_hist)
 ```
 
 ## MISE between the true model and the original histogram
+
 ```{r}
 mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, original_hist))^2, 0, 1)
 ```
 
 ## MISE between the true model and the privatized histogram
+
 ```{r}
 mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2, 0, 1)
 ```
 
 ## Simulation
+
 ```{r}
 n_values = c(100,1000)
 eps_values = c(0.1, 0.001)
@@ -129,6 +134,7 @@ out
 ```
 
 ## Plotting
+
 ```{r}
 out$mise_diff = abs(out$mise_original - out$mise_perturbed)
 
@@ -136,7 +142,7 @@ data_group <- out %>%                                 # Group data
   group_by(eps, n, bins) %>%
   dplyr::summarize(mise_mean = mean(mise_diff), mise_min = min(mise_diff), mise_max = max(mise_diff)) %>% 
   as.data.frame()
-data_group 
+data_group
 
 
 # n = 100, eps = 0.1
@@ -152,12 +158,38 @@ data3 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.1)
 data4 = subset(data_group, data_group$n == 1000 & data_group$eps == 0.001)
 ```
 
+## Plotting with ggplot
 ```{r}
 h = ggplot(data1, aes(data1$bins))
-h +
-    geom_ribbon(aes(ymin = data1$mise_min, ymax = data1$mise_max), fill = "grey70", alpha = 0.3) +
+h + 
+    geom_ribbon(aes(ymin = data1$mise_min, ymax = data1$mise_max), fill = "#32a852", alpha = 0.3) +
     geom_line(aes(y = data1$mise_mean)) +
     geom_ribbon(aes(ymin = data2$mise_min, ymax = data2$mise_max), fill = "grey60", alpha = 0.3) +
-    geom_line(aes(y = data2$mise_mean))
+    geom_line(aes(y = data2$mise_mean)) +
+    geom_ribbon(aes(ymin = data3$mise_min, ymax = data3$mise_max), fill = "grey50", alpha = 0.3) +
+    geom_line(aes(y = data3$mise_mean)) +
+    geom_ribbon(aes(ymin = data4$mise_min, ymax = data4$mise_max), fill = "grey40", alpha = 0.3) +
+    geom_line(aes(y = data4$mise_mean))
 ```
 
+## Plotting with standard R
+```{r}
+
+colours = rainbow_hcl(4)
+lwd = 4
+
+plot(NULL,
+     xlim = c(min(bins_values), max(bins_values)),
+     ylim = c(min(data_group$mise_mean), max(data_group$mise_mean)),
+     ylab = "Mean MISE Differences",
+     xlab = "Number of bins",
+     main = "Mean MISE Differences over 100 Simulations")
+lines(data1$bins, data1$mise_mean, type = "l", lwd = lwd, col = colours[1])
+lines(data2$bins, data2$mise_mean, type = "l", lwd = lwd, col = colours[2])
+lines(data3$bins, data3$mise_mean, type = "l", lwd = lwd, col = colours[3])
+lines(data4$bins, data4$mise_mean, type = "l", lwd = lwd, col = colours[4])
+legend("topright", 
+       legend=c("n = 100, eps = 0.1", "n = 100, eps = 0.001", "n = 1000, eps = 0.1", "n = 1000, eps = 0.001"), 
+       col = colours,
+       lwd = 4)
+```
