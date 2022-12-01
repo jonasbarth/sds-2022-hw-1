@@ -21,7 +21,7 @@ library('colorspace')
 ## Hyperparameters
 
 ```{r}
-n = 100
+n = 1000
 eps = 0.1
 m = n^(1 / (2 + 1))
 ```
@@ -66,18 +66,6 @@ plot(perturbed_hist)
 
 ```
 
-## MISE between the true model and the original histogram
-
-```{r}
-mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, original_hist))^2, 0, 1)
-```
-
-## MISE between the true model and the privatized histogram
-
-```{r}
-mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_hist(x, perturbed_hist))^2, 0, 1)
-```
-
 ## Simulation
 
 ```{r}
@@ -88,13 +76,13 @@ bins_values = seq(5, 50, 5)
 M = 100
 out = data.frame()
 
-mise_sim = function(n, n_bins, eps, sim_size) {
+mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10,10)) {
     
     out = data.frame()
     
     for (m in 1:sim_size) {
         # sample from beta
-        b_sample = rbeta(n=n, 10, 10)
+        b_sample = dist(n=n)
 
         # create original hist
         original_hist = hist(b_sample, plot=F, breaks=n_bins - 1)
@@ -193,3 +181,41 @@ legend("topright",
        col = colours,
        lwd = 4)
 ```
+
+
+# 2.2 Samplng from a different distribution
+We now sample from:
+$$
+p_X(x) = \pi \cdot \text{dbeta}(x | \alpha_1, \beta_1) + (1 -\pi )\cdot \text{dbeta}(x | \alpha_2, \beta_2)
+$$
+```{r}
+func = function(n, pi =.5) pi * rbeta(n,.5,.3) + (1 - pi) * rbeta(n,.5,.1) 
+h=hist(func(1000), plot=F)
+plot(h, main='Density of p[X]',xlab = '')
+```
+```{r}
+h_perturbed=l_perturbe(h)
+
+plot(h_perturbed, main='Perturbed Histogram of p[X]', xlab='')
+```
+
+
+```{r}
+pi_values<-c(.25,.5,.75)
+out_new = data.frame()
+
+
+for (n in n_values) {
+    for (eps in eps_values) {
+        for (n_bins in bins_values) {
+            for (pi in pi_values)   {
+                sim_result = mise_sim(n, n_bins, eps, sim_size = M, dist=func)
+                out_new = rbind(out_new, sim_result)
+            }
+        }
+    }
+}
+
+out_new
+```
+
