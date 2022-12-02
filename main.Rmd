@@ -81,7 +81,7 @@ l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
 }
 ```
 
-The peturbed histogram.
+Plot the peturbed histogram. We can see that it is more sparse than the original histogram.
 ```{r}
 perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
 plot(perturbed_hist)
@@ -114,7 +114,7 @@ At each simulation, we do the following:
 6.  Save the $MISE$ values and hyperparameters of this simulation run into a dataframe.
 
 ```{r}
-mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10,10)) {
+mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10, 10)) {
     
     out = data.frame()
     
@@ -155,15 +155,17 @@ We run the simulation $M$ times for all possible hyperparameter combinations. Th
 ```{r}
 sim_data = data.frame()
 
-for (n in n_values) {
-    for (eps in eps_values) {
-        for (n_bins in bins_values) {
-            sim_result = mise_sim(n, n_bins, eps, sim_size = M)
-            sim_data = rbind(sim_data, sim_result)
-        }
-    }
-}
+# Create a grid with all possible hyperparameter combinations
+hyperparameter_grid = expand.grid(n = n_values, bins = bins_values, eps = eps_values)
 
+for(rowname in rownames(hyperparameter_grid)) {
+    n = hyperparameter_grid[rowname, "n"]
+    bins = hyperparameter_grid[rowname, "bins"]
+    eps = hyperparameter_grid[rowname, "eps"]
+    
+    sim_result = mise_sim(n = n, n_bins = bins, eps = eps, sim_size = M)
+    sim_data = rbind(sim_data, sim_result)
+}
 ```
 
 ```{r}
