@@ -11,24 +11,25 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
 
 Index
 
+-   [Requirements](#requirements)
+-   [Original and Perturbed Histogram Example](#original-and-perturbed-histogram-example)
 -   [Simulation](#simulation)
 -   [Plotting](#plotting)
 
-```{r}
-install.packages('VGAM') # for sampling from a laplace
-install.packages("dplyr") # for using group by on the data from the simulation
-install.packages("colorspace") # for plotting
-install.packages("latex2exp") # for expressions in plots
-```
+## Requirements {#requirements}
 
 ```{r}
-library('VGAM')
-library('dplyr')
-library('colorspace')
-library('latex2exp')
+require('VGAM') # for sampling from a laplace
+require("dplyr") # for using group by on the data from the simulation
+require("colorspace") # for plotting
+require("latex2exp") # for mathematical expressions in plots
 ```
 
-## Hyperparameters
+## Original and Perturbed Histogram Example {#original-and-perturbed-histogram-example}
+
+To get a visual understanding of what it means to perturbe a histogram, we will show an original histogram sampled from a $Beta$ distribution and its perturbed version.
+
+### Hyperparameters
 
 ```{r}
 n = 1000
@@ -36,20 +37,24 @@ eps = 0.1
 m = n^(1 / (2 + 1))
 ```
 
-## Original Histogram
+### Original Histogram
+
+The original histogram is sampled from a $Beta$ distribution with $\alpha = 10, \beta = 10$.
 
 ```{r}
 b_sample = rbeta(n=n, 10, 10)
 
 original_hist = hist(b_sample, plot=F, breaks=m-1)
 
-plot(original_hist)
+plot(original_hist,
+     xlab = NULL,
+     ylab = NULL,
+     main = paste("Histogram of", n ,"samples from a Beta distribution"))
 ```
 
-## Create Perturbed Histogram
-
+### Perturbed Histogram
+Since we have to create many perturbed histograms, we will put this logic into a function for reusability.
 ```{r}
-
 l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
     perturbed_hist = h
     lap_sample = rlaplace(length(perturbed_hist$counts), location = l_mean, scale = l_scale)
@@ -59,32 +64,42 @@ l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
     
     # If we end up with a negative number, we choose 0 instead. Same as max(0, D_j)
     perturbed_hist$counts[perturbed_hist$counts <= 0] = 0
-
-    # Normalise D_j over the sum of all bins
-    perturbed_hist$counts = perturbed_hist$counts / sum(perturbed_hist$counts)
+    
+    # If our samples from the laplace lead to a negative count in each bin, we cannot normalise over the
+    # sum since this would be a division over 0.
     if (any(is.na(perturbed_hist$counts))) {
         perturbed_hist$counts = rep(0, length(perturbed_hist$counts))
+    } else {
+        # Normalise D_j over the sum of all bins
+        perturbed_hist$counts = perturbed_hist$counts / sum(perturbed_hist$counts)
     }
-    
+
     # Also update the density, divide q_hat by 1/m
     perturbed_hist$density = perturbed_hist$counts / (1 / m)
     
     return(perturbed_hist)
 }
+```
+
+The peturbed histogram.
+```{r}
 perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
 plot(perturbed_hist)
 
 ```
 
 ## Simulation {#simulation}
+Now we can get to the actual simulation of the $MISE$ between the original distribution and original histogram, and the $MISE$ between the original distribution and the perturbed histogram.
 
 ### Hyperparameters
 
+These are the hyperparameters needed for the simulation.
+
 ```{r}
-n_values = c(100,1000)
+n_values = c(100,1000) # sample size
 eps_values = c(0.1, 0.001)
 bins_values = seq(5, 50, 5)
-M = 1000
+M = 1000 # number of simulations to be run
 ```
 
 ### Function for running simulations with fixed hyperparameters
@@ -133,13 +148,6 @@ mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10,10)) 
 
 ```
 
-```{r}
-save(out, file = "simulation.Rda")
-
-out
-data1
-```
-
 ### Running the Simulation
 
 We run the simulation $M$ times for all possible hyperparameter combinations. The results are saved into a dataframe.
@@ -162,7 +170,7 @@ for (n in n_values) {
 sim_data
 ```
 
-## Plotting
+## Plotting {#plotting}
 
 ### Absolute MISE Differences
 
