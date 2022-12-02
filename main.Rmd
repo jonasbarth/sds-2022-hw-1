@@ -53,7 +53,9 @@ plot(original_hist,
 ```
 
 ### Perturbed Histogram
+
 Since we have to create many perturbed histograms, we will put this logic into a function for reusability.
+
 ```{r}
 l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
     perturbed_hist = h
@@ -82,6 +84,7 @@ l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
 ```
 
 Plot the peturbed histogram. We can see that it is more sparse than the original histogram.
+
 ```{r}
 perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
 plot(perturbed_hist)
@@ -89,6 +92,7 @@ plot(perturbed_hist)
 ```
 
 ## Simulation {#simulation}
+
 Now we can get to the actual simulation of the $MISE$ between the original distribution and original histogram, and the $MISE$ between the original distribution and the perturbed histogram.
 
 ### Hyperparameters
@@ -97,8 +101,8 @@ These are the hyperparameters needed for the simulation.
 
 ```{r}
 n_values = c(100,1000) # sample size
-eps_values = c(0.1, 0.001)
-bins_values = seq(5, 50, 5)
+eps_values = c(0.1, 0.001) # values for epsilon
+bins_values = seq(5, 50, 5) # values for the histogram bin size
 M = 1000 # number of simulations to be run
 ```
 
@@ -204,8 +208,6 @@ data_group <- sim_data %>%
                    mise_perturbed_min = min(mise_perturbed),
                    mise_perturbed_max = max(mise_perturbed)) %>% 
   as.data.frame()
-data_group
-
 
 # 3. Get subsets.
 data1 = subset(data_group, data_group$n == 100 & data_group$eps == 0.1)
@@ -253,14 +255,15 @@ legend("topright",
 
 ### Original Mise Variation
 
-In these 4 plots we see the average: \* MISE value for the original histogram. \* MISE value for the perturbed histogram. \* Absolute difference between the MISE for the original histogram and MISE for the perturbed histogram.
+In the 4 plots below we see the average: \* MISE value for the original histogram. \* MISE value for the perturbed histogram. \* Absolute difference between the MISE for the original histogram and MISE for the perturbed histogram.
 
-The absolute differences shown in the 4 plots correspond to the lines in the previous plot. By also plotting the MISE values for the original and perturbed histogram, we can compare them easier than if we had just plotted the absolute difference. For example, for a sample size $n = 1000$, we can see that the original MISE is close to $0$ whereas the MISE of the perturbed stabilises around $2$.
-
+#### Function for a single plot
+This function plots a line plot with three lines:
+* mean of the original MISE
+* mean of the merturbed MISE
+* mean of the MISE difference
 ```{r}
-line_colours = rainbow_hcl(3)
-
-plot_mise_values = function(mise_data, main, sub, colours) {
+plot_mise_values = function(mise_data, main, sub, colours, lwd = 3) {
   
   max_y = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean, mise_data$mise_diff_mean))
   plot(NULL,
@@ -270,22 +273,37 @@ plot_mise_values = function(mise_data, main, sub, colours) {
      xlab = "Number of bins",
      main = main,
      sub = sub)
-  lines(mise_data$bins, mise_data$mise_original_mean, type = "l", lwd = 2, col = colours[1])
-  lines(mise_data$bins, mise_data$mise_perturbed_mean, type = "l", lwd = 2, col = colours[2])
-  lines(mise_data$bins, mise_data$mise_diff_mean, type = "l", lwd = 2, col = colours[3])
+  lines(mise_data$bins, mise_data$mise_original_mean, type = "l", lwd = lwd, col = colours[1])
+  lines(mise_data$bins, mise_data$mise_perturbed_mean, type = "l", lwd = lwd, col = colours[2])
+  lines(mise_data$bins, mise_data$mise_diff_mean, type = "l", lwd = lwd, col = colours[3])
 }
+```
 
-par(mfrow=c(2, 2))
+#### Plotting
+The absolute differences shown in the 4 plots correspond to the lines in the previous plot. By also plotting the MISE values for the original and perturbed histogram, we can compare them easier than if we had just plotted the absolute difference. For example, for a sample size $n = 1000$, we can see that the original MISE is close to $0$ whereas the MISE of the perturbed stabilises around $2$.
+```{r}
+line_colours = rainbow_hcl(3)
+
+# Create a layout for the 4 plots and the common legend
+layout(matrix(c(1,2,5,3,4,5), ncol=2, nrow=3), heights=c(6, 6, 2))
+
+# Plot the 4 plots
 plot_mise_values(data1, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.1.", line_colours)
 plot_mise_values(data2, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.001.", line_colours)
 plot_mise_values(data3, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.1", line_colours)
 plot_mise_values(data4, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.001.", line_colours)
-?par
 
-legend("bottom",
-         legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m})$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m})$"), TeX("$|(MISE(p_X, \\hat{p}_{n,m}) - MISE(p_X, \\hat{q}_{\\epsilon, m})|$")),
-          col = colours,
-         lwd = 2, xpd = TRUE, horiz = TRUE, cex = 1, seg.len=2)
+# Plot the legend
+par(mai=c(0,0,0,0))
+plot.new()
+legend("center",
+       legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m})$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m})$"), TeX("$|(MISE(p_X, \\hat{p}_{n,m}) - MISE(p_X, \\hat{q}_{\\epsilon, m})|$")),
+       col = colours,
+       lwd = 3, 
+       xpd = TRUE, 
+       horiz = TRUE, 
+       cex = 1, 
+       seg.len=2)
 
 ```
 
