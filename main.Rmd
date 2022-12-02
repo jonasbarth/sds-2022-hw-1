@@ -318,28 +318,89 @@ func = function(n, pi =.5) pi * rbeta(n,.5,.3) + (1 - pi) * rbeta(n,.5,.1)
 h=hist(func(1000), plot=F)
 plot(h, main='Density of p[X]',xlab = '')
 ```
-
+## Perturbed Histogram
 ```{r}
 h_perturbed=l_perturbe(h)
 
 plot(h_perturbed, main='Perturbed Histogram of p[X]', xlab='')
 ```
 
+## Run Simulation
+We will run the simulation with the same parameters for $n$, $\epsilon$ and $m$ and for the same number of times $M$. We also have $\pi$ as an additional parameter.
+
 ```{r}
 pi_values<-c(.25,.5,.75)
 out_new = data.frame()
 
+hyperparameter_grid = expand.grid(n = n_values, bins = bins_values, eps = eps_values, pi = pi_values)
 
 for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
             for (pi in pi_values)   {
                 sim_result = mise_sim(n, n_bins, eps, sim_size = M, dist=func)
+                sim_result$pi = pi
                 out_new = rbind(out_new, sim_result)
             }
         }
     }
 }
+```
+
+
+## Plotting
+```{r}
+# 1. absolute difference
+out_new$mise_diff = abs(out_new$mise_original - out_new$mise_perturbed)
 
 out_new
+# 2. group data
+data_group_pi <- out_new %>%                                 
+  group_by(eps, n, bins, pi) %>%
+  dplyr::summarize(mise_diff_mean = mean(mise_diff), 
+                   mise_diff_min = min(mise_diff), 
+                   mise_diff_max = max(mise_diff),
+                   mise_original_mean = mean(mise_original),
+                   mise_original_min = min(mise_original),
+                   mise_original_max = max(mise_original),
+                   mise_perturbed_mean = mean(mise_perturbed),
+                   mise_perturbed_min = min(mise_perturbed),
+                   mise_perturbed_max = max(mise_perturbed)) %>% 
+  as.data.frame()
+
+data_group_pi
+
+# 3. Get subsets.
+
+
+subset_and_plot = function(mise_data) {
+  mise_data_1 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.)
+  mise_data_2 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.001)
+  mise_data_3 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.1)
+  mise_data_4 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.001)
+  
+  plot(NULL,
+       xlim = c(min(bins_values), max(bins_values)),
+       ylim = c(min(mise_data$mise_diff_mean), max(mise_data$mise_diff_mean)),
+       ylab = "Mean MISE Differences",
+       xlab = "Number of bins",
+       main = paste("Mean MISE differences over", M, "simulations"))
+  lines(mise_data_1$bins, mise_data_1$mise_diff_mean, type = "l", lwd = lwd, col = colours[1])
+  lines(mise_data_2$bins, mise_data_2$mise_diff_mean, type = "l", lwd = lwd, col = colours[2])
+  lines(mise_data_3$bins, mise_data_3$mise_diff_mean, type = "l", lwd = lwd, col = colours[3])
+  lines(mise_data_4$bins, mise_data_4$mise_diff_mean, type = "l", lwd = lwd, col = colours[4])
+  legend("topright", 
+         legend=legend_names,
+         col = colours,
+         lwd = lwd)
+}
+
+pi_025 = subset(data_group_pi, data_group_pi$pi == 0.25)
+pi_05 = subset(data_group_pi, data_group_pi$pi == 0.5)
+pi_075 = subset(data_group_pi, data_group_pi$pi == 0.75)
+
+subset_and_plot(pi_025)
+subset_and_plot(pi_05)
+subset_and_plot(pi_075)
+
 ```
