@@ -49,7 +49,7 @@ original_hist = hist(b_sample, plot=F, breaks=m-1)
 plot(original_hist,
      xlab = NULL,
      ylab = NULL,
-     main = paste("Histogram of", n ,"samples from a Beta distribution"))
+     main = paste("Histogram of", n ,"samples from a Beta(10, 10) distribution"))
 ```
 
 ### Perturbed Histogram
