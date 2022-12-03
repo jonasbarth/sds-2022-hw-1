@@ -28,7 +28,7 @@ registerDoParallel(cores = detectCores())
 Given as input a population size `M`, the `sim` function simulates `M` times $T \sim |\{Y_1..Y_n, \ Y_n > X\}|$.
 At first it generates a uniform vector of size $M$, which will be $X$, then it samples $M \times b$ uniform values and puts them in a matrix, where $b$ is the base step.
 At this iteration $b$ values are generated for each of the $M$ individuals in the population, and if the $j$-th individual contains a value major than $X$ in the vector $M_{j,k} > X \ \ \forall k \in \{1..b\}$ then the the first k in which this happens is taken and saved in the vector `res`.
-Then the process is repeated for each iteration $i$ for all those values that still haven't found a solution but this time with an increase of the samples extracted for each variable.
+Then the process is repeated through recursion for all those values that still haven't found a solution but this time with an increase of the samples extracted for each variable.
 So if the number of individuals that now found a solution is $M_i$ at the i-th step: 1.
 We sample a random uniform $(M-M_i) \times b^i$ matrix.
 2.
@@ -37,36 +37,32 @@ We check which of the individuals has terminated its course.
 If there are no more survivors we stop the execution, otherwise we continue with the remaining $M_{i+1}$.
 
 ```{r}
-sim <- function(M = 1, steps.base=10){
-    X = runif(M)# We pick M random X
-    res = integer(M)
-    miss.vars = 1:M
-    miss.n = M
-    i = 1
-    steps.prev = 0
-    while(miss.n != 0){
-        #if (i>1) 
-        #    print(paste('Remaining r.v. are:', miss.n))
-        # at the i-th iteration we pick l^(i+1) values for each of the remaining rows
-        steps.now = min(steps.base^i, 1e6)
-        y <- matrix(
-            runif(steps.now * miss.n), 
-            nrow = miss.n)
-        trespass = y>(X[miss.vars])                   # for each row we see which value is over its X
-        over = ifelse(
-            rowSums(trespass)==0,                     # if no trespasses for that row
-            0,                                        # then it's 0
-            steps.prev + max.col(trespass, "first"))  # else it's the first of the trespasses
-        res[miss.vars] = res[miss.vars] + over        # we add up the result with the partial we just obtained
+sim <- function(X, steps.base=10, i=1){
+    M = length(X)
+    steps.now = min(steps.base^i, 1e7)
 
-        miss.vars = which(res==0)                     # we update the missing values
-        miss.n = length(miss.vars)                     
-        steps.prev = steps.prev + steps.now
-        i = i + 1
+    y <- matrix(
+        runif(steps.now * M), 
+        nrow = M)
+    trespass = y>X                  # for each row we see which value is over its X
+    over = ifelse(
+        rowSums(trespass)==0,       # if no trespasses for that row
+        0,                          # then it's 0
+        max.col(trespass, "first")) # else it's the first of the trespasses
+
+    rm(y, trespass)                 # we clean the memory by releasing unused vectors
+    miss.vars = which(over==0)      # we update the missing values
+    miss.n = length(miss.vars)                     
+    i = i + 1
+    if (miss.n != 0) {
+    # if there are still missing variables we repeat the process through recursion
+        remainder = sim(X = X[miss.vars], i=i) + steps.now
+        over[miss.vars] = remainder
     }
-    return(res)
+
+    return(over)
 }
-sim(100)
+sim(runif(100))
 ```
 
 If now want to analyze this function we can notice a few things: - at the beginning only a few of variables is extracted for each individual, this is because most of the individuals are short lived and will be gone after no more than 10 steps.
@@ -93,29 +89,23 @@ set.seed(13112221)
 
 M = 10^(2:7)
 n.threads = 10
-n.simulations = 3
+n.simulations = 8
 df = data.frame()
 
 for(i in 1:n.simulations) {
     for(m in M) {
         beg <- Sys.time()
-        X = runif(m)
         r = foreach(idx=1:n.threads, .combine=c) %dopar% {
-            sim(m/n.threads)
+            sim(runif(m/n.threads))
         }
         fin<- Sys.time() - beg
 
         # store results
-        row = data.frame(size=m, time=fin, it=i)
-        row$values <- list(r)
+        row = data.frame(size=m, time=fin, it=i, mean=mean(r), variance=var(r), median=median(r))
         df = rbind(df, row)
     }
-    fin<- Sys.time() - beg
-    print(fin)
-    values = append(values, list(r))
-    df = rbind(df, data.frame(size=m, time=fin))
 }
-df[c('size', 'time')]
+df
 ```
 
 This is the time it takes, vs some linear function:
