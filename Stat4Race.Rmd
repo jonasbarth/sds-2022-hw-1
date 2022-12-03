@@ -84,19 +84,31 @@ curve(1/x/(x+1), col='orange', lwd=3, add=T)
 ```
 
 
-Finally we compute the how much does it take, note that we split everything into 10 threads to speed up computing:
+### Simulations
+
+Finally we do the simulations, note that we split everything into 10 threads to speed up computing:
+
 ```{r}
 set.seed(13112221)
 
 M = 10^(2:7)
 n.threads = 10
+n.simulations = 3
 df = data.frame()
-values = list()
-for(m in M) {
-    beg <- Sys.time()
-    X = runif(m)
-    r = foreach(idx=1:n.threads, .combine=append) %dopar% {
-        sim(m/n.threads)
+
+for(i in 1:n.simulations) {
+    for(m in M) {
+        beg <- Sys.time()
+        X = runif(m)
+        r = foreach(idx=1:n.threads, .combine=c) %dopar% {
+            sim(m/n.threads)
+        }
+        fin<- Sys.time() - beg
+
+        # store results
+        row = data.frame(size=m, time=fin, it=i)
+        row$values <- list(r)
+        df = rbind(df, row)
     }
     fin<- Sys.time() - beg
     print(fin)
