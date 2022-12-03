@@ -9,15 +9,33 @@ output:
 
 Look at colab [link](https://colab.research.google.com/drive/1CMkKzX2K0-l90rAZXl9V1RST_YEOKAzr?usp=sharing)
 
-I will transfer this here later, but the performances must be measured on colab nonetheless.
+### Requirements
 
-## Simulation function:
-Given as input a population size `M`, the `sim` function simulates `M` times $T \sim |\{Y_1..Y_n, \ Y_n > X\}|$. 
-At first it generates a uniform vector of size $M$, which will be $X$, then it samples $M \times b$ uniform values and puts them in a matrix, where $b$ is the base step. At this iteration $b$ values are generated for each of the $M$ individuals in the population, and if the $j$-th individual contains a value major than $X$ in the vector $M_{j,k} > X \ \ \forall k \in \{1..b\}$ then the the first k in which this happens is taken and saved in the vector `res`. 
-Then the process is repeated for each iteration $i$ for all those values that still haven't found a solution but this time with an increase of the samples extracted for each variable. So if the number of individuals that now found a solution is $M_i$ at the i-th step: 
-1. We sample a random uniform $(M-M_i) \times b^i$ matrix.
-2. We check which of the individuals has terminated its course.
-3. If there are no more survivors we stop the execution, otherwise we continue with the remaining $M_{i+1}$.
+```{r}
+install.packages('foreach')
+install.packages('doParallel')
+install.packages('dplyr')
+
+library(foreach)
+library(iterators)
+library(doParallel) 
+library(dplyr)
+registerDoParallel(cores = detectCores())
+```
+
+### Simulation function:
+
+Given as input a population size `M`, the `sim` function simulates `M` times $T \sim |\{Y_1..Y_n, \ Y_n > X\}|$.
+At first it generates a uniform vector of size $M$, which will be $X$, then it samples $M \times b$ uniform values and puts them in a matrix, where $b$ is the base step.
+At this iteration $b$ values are generated for each of the $M$ individuals in the population, and if the $j$-th individual contains a value major than $X$ in the vector $M_{j,k} > X \ \ \forall k \in \{1..b\}$ then the the first k in which this happens is taken and saved in the vector `res`.
+Then the process is repeated for each iteration $i$ for all those values that still haven't found a solution but this time with an increase of the samples extracted for each variable.
+So if the number of individuals that now found a solution is $M_i$ at the i-th step: 1.
+We sample a random uniform $(M-M_i) \times b^i$ matrix.
+2.
+We check which of the individuals has terminated its course.
+3.
+If there are no more survivors we stop the execution, otherwise we continue with the remaining $M_{i+1}$.
+
 ```{r}
 sim <- function(M = 1, steps.base=10){
     X = runif(M)# We pick M random X
