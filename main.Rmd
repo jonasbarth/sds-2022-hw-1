@@ -416,16 +416,22 @@ plot_n_eps(pi_075)
 ```
 
 ## 2.4 Bonus
-
-
+We want to perform some simulations to test whether our mechanism ensures $\epsilon$ differential privacy:
 ```{r}
-for (i in 1:10) {
-  h = hist(rbeta(100,10,10),plot=F)
-  e = 1
-  h_p = l_perturbe(h,variance=8/e^2)
-  
-  diff = max( h$density/h_p$density )
-  print(diff )
-}
-```
+n.sim = 100
+ratio = numeric(n.sim)
+eps = .1
 
+for (i in 1:n.sim) {
+  h = hist(rbeta(100000,10,10), breaks=10,plot=F)
+  h$density = h$density/2
+  h_p = l_perturbe(h,variance=8/eps^2)
+  
+  diff = max( h$density[h_p$density!=0]/h_p$density[h_p$density!=0] )
+  #plot(h, freq=F, c=rgb(1,0,0))
+  #plot(h_p, freq=F, add=T, c= rgb(0,1,0,0.5))
+  ratio[i] = diff
+}
+sum(ratio <= exp(eps)) / n.sim
+```
+#### TODO : for some reasone it appears that differential privacy isn't always ensured?
