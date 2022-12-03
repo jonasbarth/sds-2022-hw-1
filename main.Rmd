@@ -413,3 +413,18 @@ plot_n_eps(pi_025)
 plot_n_eps(pi_05)
 plot_n_eps(pi_075)
 ```
+
+## 2.4 Bonus
+
+
+```{r}
+for (i in 1:10) {
+  h = hist(rbeta(100,10,10),plot=F)
+  e = 1
+  h_p = l_perturbe(h,variance=8/e^2)
+  
+  diff = max( h$density/h_p$density )
+  print(diff )
+}
+```
+
