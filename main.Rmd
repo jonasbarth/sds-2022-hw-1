@@ -232,13 +232,16 @@ $$|MISE(p_X, \hat{p}_{n,m}) - MISE(p_X, \hat{q}_{\epsilon, m})|$$
 
 Each line in the plot represents the absolute MISE difference for a specific combination of the number of samples from the Beta distribution $n$ and the privacy value epsilon $\epsilon$, averaged over $M$ simulations.
 
-From the plot we can see that, as the number of bins increase, the MISE difference convergence seems to happen independently of the value for epsilon. For the smaller sample size $n = 100$, this happens around a number of bins $m = 25$. For the larger sample size $n = 1000$, this happens earlier around the number of bins $m = 10$.
+From the plot we can see that, as the number of bins increase, the MISE difference converges. The difference starts off high for the smallest number of bins, $5$. Using $10$ bins already substantially minimises the difference and as the number of bins grows, it only decreases minimally.
 
-This could be explained by the fact that smaller sample sizes are less likely to capture the necessary variance which is more likely to result in a skewed histogram when it has few bins.
+We also observe that the $MISE$ difference starts higher for the larger sample size $n=1000$, between $8$ and $10$, than for the smaller sample size $n=100$, around $6$.
+
+This plot does not tell the whole story however, as the difference only tells us whether the original $MISE$ and perturbed $MISE$ are approaching each other, but not the actual $MISE$ values. As the next plot will show, the sample size $n$ does have an effect on the original $MISE$ value.
+
 
 ```{r}
-plot_n_eps = function(mise_data) {
-  mise_data_1 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.)
+plot_n_eps = function(mise_data, colours, subtitle = NULL) {
+  mise_data_1 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.1)
   mise_data_2 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.001)
   mise_data_3 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.1)
   mise_data_4 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.001)
@@ -248,7 +251,8 @@ plot_n_eps = function(mise_data) {
        ylim = c(min(mise_data$mise_diff_mean), max(mise_data$mise_diff_mean)),
        ylab = "Mean MISE Differences",
        xlab = "Number of bins",
-       main = paste("Mean MISE differences over", M, "simulations"))
+       main = paste("Mean MISE differences over", M, "simulations"),
+       sub = subtitle)
   lines(mise_data_1$bins, mise_data_1$mise_diff_mean, type = "l", lwd = lwd, col = colours[1])
   lines(mise_data_2$bins, mise_data_2$mise_diff_mean, type = "l", lwd = lwd, col = colours[2])
   lines(mise_data_3$bins, mise_data_3$mise_diff_mean, type = "l", lwd = lwd, col = colours[3])
@@ -258,7 +262,7 @@ plot_n_eps = function(mise_data) {
          col = colours,
          lwd = lwd)
 }
-plot_n_eps(data_group)
+plot_n_eps(data_group, colours)
 ```
 
 ### Original Mise Variation
@@ -288,7 +292,11 @@ plot_mise_values = function(mise_data, main, sub, colours, lwd = 3) {
 
 #### Plotting
 
-The absolute differences shown in the 4 plots correspond to the lines in the previous plot. By also plotting the MISE values for the original and perturbed histogram, we can compare them easier than if we had just plotted the absolute difference. For example, for a sample size $n = 1000$, we can see that the original MISE is close to $0$ whereas the MISE of the perturbed stabilises around $2$.
+The absolute differences shown in the 4 plots correspond to the lines in the previous plot. By also plotting the MISE values for the original and perturbed histogram, we can compare them easier than if we had just plotted the absolute difference. For example, for a sample size $n = 1000$, we can see that the original MISE is close to $0$ whereas the MISE of the perturbed stabilises around $2$. For this reason, the perturbed $MISE$ and $MISE$ difference are almost identical for the larger sampl size $n=1000$.
+
+Here we can also see that for the larger sample size of $n=1000$, the original $MISE$ is constant around $0$ whereas the original $MISE$ for the smaller sample size $n=100$ actually increases to around $1$. This explains why the $MISE$ difference for the smaller sample size $n=100$ in the first plot is actually lower than the one for the large sample size $n=1000$. 
+
+It is due to the fact that the perturbed $MISE$ values converge at around $10$ bins for all sample sizes and epsilon values but the original $MISE$ value increasing for the smaller sample size $n=100$. Hence, we have a smaller difference between the original and perturbed $MISE$ for these hyperparameters.
 
 ```{r}
 line_colours = rainbow_hcl(3)
@@ -410,5 +418,5 @@ pi_075 = subset(data_group_pi, data_group_pi$pi == 0.75)
 layout(matrix(c(1, 2, 3), ncol=1, nrow=3), heights=c(10, 10, 10), TRUE) 
 plot_n_eps(pi_025)
 plot_n_eps(pi_05)
-plot_n_eps(pi_075)
+plot_n_eps(pi_075)a
 ```
