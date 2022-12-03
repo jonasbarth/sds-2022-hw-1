@@ -57,9 +57,9 @@ plot(original_hist,
 Since we have to create many perturbed histograms, we will put this logic into a function for reusability.
 
 ```{r}
-l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
+l_perturbe = function(h, variance = 8 / (0.001 ^ 2)) {
     perturbed_hist = h
-    lap_sample = rlaplace(length(perturbed_hist$counts), location = l_mean, scale = l_scale)
+    lap_sample = rlaplace(length(perturbed_hist$counts), scale = sqrt(variance/2))
     
     # Add the laplace sample to D_j
     perturbed_hist$counts = perturbed_hist$counts + lap_sample
@@ -86,9 +86,10 @@ l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
 Plot the peturbed histogram. We can see that it is more sparse than the original histogram.
 
 ```{r}
-perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
-plot(perturbed_hist)
-
+perturbed_hist = l_perturbe(original_hist, variance = 8 / (eps^2))
+plot(perturbed_hist, 
+     freq=F, 
+     main='Perturbed Hihstogram')
 ```
 
 ## Simulation {#simulation}
@@ -133,7 +134,7 @@ mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10, 10))
         d_original = stepfun(original_hist$breaks, c(0, original_hist$density, 0))
 
         # 3. create perturbed hist
-        perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
+        perturbed_hist = l_perturbe(original_hist, variance = 8 / (eps^2))
         
         d_perturbed = stepfun(perturbed_hist$breaks, c(0, perturbed_hist$density, 0))
         
@@ -333,7 +334,8 @@ $$
 ```{r}
 func = function(n, pi =.5) pi * rbeta(n,.5,.3) + (1 - pi) * rbeta(n,.5,.1)
 h=hist(func(1000), plot=F)
-plot(h, main='Density of p[X]',xlab = '')
+plot(h, main='Density of
+     p[X]',xlab = '', freq=F)
 ```
 
 ## Perturbed Histogram
@@ -341,7 +343,7 @@ plot(h, main='Density of p[X]',xlab = '')
 ```{r}
 h_perturbed=l_perturbe(h)
 
-plot(h_perturbed, main='Perturbed Histogram of p[X]', xlab='')
+plot(h_perturbed, main='Perturbed Histogram of p[X]', xlab='', freq=F)
 ```
 
 ## Run Simulation
@@ -420,3 +422,24 @@ plot_n_eps(pi_025)
 plot_n_eps(pi_05)
 plot_n_eps(pi_075)a
 ```
+
+## 2.4 Bonus
+We want to perform some simulations to test whether our mechanism ensures $\epsilon$ differential privacy:
+```{r}
+n.sim = 100
+ratio = numeric(n.sim)
+eps = .1
+
+for (i in 1:n.sim) {
+  h = hist(rbeta(100000,10,10), breaks=10,plot=F)
+  h$density = h$density/2
+  h_p = l_perturbe(h,variance=8/eps^2)
+  
+  diff = max( h$density[h_p$density!=0]/h_p$density[h_p$density!=0] )
+  #plot(h, freq=F, c=rgb(1,0,0))
+  #plot(h_p, freq=F, add=T, c= rgb(0,1,0,0.5))
+  ratio[i] = diff
+}
+sum(ratio <= exp(eps)) / n.sim
+```
+#### TODO : for some reasone it appears that differential privacy isn't always ensured?
