@@ -54,10 +54,10 @@ sim <- function(M = 1, steps.base=10){
             nrow = miss.n)
         trespass = y>(X[miss.vars])                   # for each row we see which value is over its X
         over = ifelse(
-            rowSums(trespass)==0,                   # if no trespasses for that row
-            0,                                      # then it's 0
-            steps.prev + max.col(trespass, "first"))   # else it's the first of the trespasses
-        res[miss.vars] = res[miss.vars] + over          # we add up the result with the partial we just obtained
+            rowSums(trespass)==0,                     # if no trespasses for that row
+            0,                                        # then it's 0
+            steps.prev + max.col(trespass, "first"))  # else it's the first of the trespasses
+        res[miss.vars] = res[miss.vars] + over        # we add up the result with the partial we just obtained
 
         miss.vars = which(res==0)                     # we update the missing values
         miss.n = length(miss.vars)                     
@@ -68,29 +68,21 @@ sim <- function(M = 1, steps.base=10){
 }
 sim(100)
 ```
-If now want to analyze this function we can notice a few things:
-- at the beginning only a few of variables is extracted for each individual, this is because most of the individuals are short lived and will be gone after no more than 10 steps.
+
+If now want to analyze this function we can notice a few things: - at the beginning only a few of variables is extracted for each individual, this is because most of the individuals are short lived and will be gone after no more than 10 steps.
 - as the iterations go on the number of steps for each iteration increases exponentially $b^i$, this is because while with a large population we were restricted in the size of the steps due to memory limitations, when the population tends to decrease exponentially, we can exponentially increase the size of samples per iteration.
-- the population surviving to the next iteration is actually a bad event for our algorithm, as we have to resort to use the while loop. That's also why we want to increase the size of samples per iteration $b^i$, as doing so will guarantee us a faster extermination of our population.
+- the population surviving to the next iteration is actually a bad event for our algorithm, as we have to resort to use the while loop.
+That's also why we want to increase the size of samples per iteration $b^i$, as doing so will guarantee us a faster extermination of our population.
 - by doing some empirical testing we can see that the number of iterations we have per each function call is usually in the order of $O(log(M))$
 
+We can now confront the output of our simulation with the $pdf$ of T, noticing that there's a good similarity between the two:
 
-We can now confront the output of our simulation with the $pdf$ of T
 ```{r}
 T_var = sim(10000)
 hist(T_var, breaks = 10000, xlim=c(1,50), prob=T)
 curve(1/x/(x+1), col='orange', lwd=3, add=T)
 ```
-We install and import some libraries for parallel processing, as we'll need them later:
-```{r}
-install.packages('foreach')
-install.packages('doParallel')
 
-library(foreach)
-library(iterators)
-library(doParallel) 
-registerDoParallel(cores = detectCores())
-```
 
 Finally we compute the how much does it take, note that we split everything into 10 threads to speed up computing:
 ```{r}
