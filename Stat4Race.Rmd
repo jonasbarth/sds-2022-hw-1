@@ -5,6 +5,9 @@ output:
     df_print: paged
   html_notebook: default
   pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 Look at colab [link](https://colab.research.google.com/drive/1CMkKzX2K0-l90rAZXl9V1RST_YEOKAzr?usp=sharing)
@@ -74,6 +77,8 @@ That's also why we want to increase the size of samples per iteration $b^i$, as 
 We can now confront the output of our simulation with the $pdf$ of T, noticing that there's a good similarity between the two:
 
 ```{r}
+set.seed(2008201)
+
 T_var = sim(10000)
 hist(T_var, breaks = 10000, xlim=c(1,50), prob=T)
 curve(1/x/(x+1), col='orange', lwd=3, add=T)
@@ -108,25 +113,30 @@ for(i in 1:n.simulations) {
 df
 ```
 
-This is the time it takes, vs some linear function:
+We can then compute some summaries over our simulations:
 ```{r}
-plot(
-    df[c('size', 'time')],
-    type = "l", 
-    log='x',
-    lwd=5, 
-    col='orchid', 
-    xlab='Population Size', 
-    ylab='time [s]', 
-    main='Time per size of input')
-curve(x/1e5, add=T, lwd=1, type='p', from=min(df$size), to=max(df$size))
+# read summaries from simulations on Google Colab
+df = read.csv('simulations.csv') 
+
+summaries <- df %>%
+  group_by(size) %>%
+  dplyr::summarize(
+    mean_time = mean(time),
+    median_time = median(time),
+    expected = mean(mean),
+    variance = mean(variance),
+    median = median(median)
+  ) %>%
+  as.data.frame()
+summaries
 ```
 
-And this is the mean of the values, and as we can expect (since it has $\infty$ expected value) it tends to grow as the size of the simulation grows:
+
+This is the **mean** of the values, and as we can expect (since $\mathbb{E}T \to \infty$) it tends to grow as the size of the simulation grows:
+
 ```{r}
-df$mean = sapply(values, mean)
 plot(
-    df[c('size', 'mean')],
+    summaries[c('size', 'expected')],
     type = "l", 
     log='x',
     lwd=5, 
@@ -136,5 +146,18 @@ plot(
     main='Mean per size of input')
 
 ```
+This is the time it takes, vs some linear function:
 
+```{r}
+plot(
+    summaries[c('size', 'median_time')],
+    type = "l", 
+    log='x',
+    lwd=5, 
+    col='orchid', 
+    xlab='Population Size', 
+    ylab='time [s]', 
+    main='Time per size of input')
+curve(x/1e5, add=T, lwd=1, type='p', from=min(df$size), to=max(df$size))
+```
 
