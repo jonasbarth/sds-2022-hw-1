@@ -57,9 +57,9 @@ plot(original_hist,
 Since we have to create many perturbed histograms, we will put this logic into a function for reusability.
 
 ```{r}
-l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
+l_perturbe = function(h, variance = 8 / (0.001 ^ 2)) {
     perturbed_hist = h
-    lap_sample = rlaplace(length(perturbed_hist$counts), location = l_mean, scale = l_scale)
+    lap_sample = rlaplace(length(perturbed_hist$counts), scale = sqrt(variance/2))
     
     # Add the laplace sample to D_j
     perturbed_hist$counts = perturbed_hist$counts + lap_sample
@@ -86,9 +86,10 @@ l_perturbe = function(h, l_mean = 0, l_scale = 8 / (0.001 ^ 2)) {
 Plot the peturbed histogram. We can see that it is more sparse than the original histogram.
 
 ```{r}
-perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
-plot(perturbed_hist, freq=F)
-
+perturbed_hist = l_perturbe(original_hist, variance = 8 / (eps^2))
+plot(perturbed_hist, 
+     freq=F, 
+     main='Perturbed Hihstogram')
 ```
 
 ## Simulation {#simulation}
@@ -133,7 +134,7 @@ mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10, 10))
         d_original = stepfun(original_hist$breaks, c(0, original_hist$density, 0))
 
         # 3. create perturbed hist
-        perturbed_hist = l_perturbe(original_hist, l_scale = 8 / (eps^2))
+        perturbed_hist = l_perturbe(original_hist, variance = 8 / (eps^2))
         
         d_perturbed = stepfun(perturbed_hist$breaks, c(0, perturbed_hist$density, 0))
         
