@@ -18,13 +18,13 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarini"
 # Requirements {#requirements}
 
 ```{r}
-install.packages('foreach') # for using for-each notation in for loops
-install.packages('doParallel') # for parallellisation
-install.packages('VGAM') # for sampling from a laplace
-install.packages('dplyr') # for using group by on the data from the simulation
-install.packages('colorspace') # for plotting
-install.packages('latex2exp') # for mathematical expressions in plots
-install.packages('iterators')
+#install.packages('foreach') # for using for-each notation in for loops
+#install.packages('doParallel') # for parallellisation
+#install.packages('VGAM') # for sampling from a laplace
+#install.packages('dplyr') # for using group by on the data from the simulation
+#install.packages('colorspace') # for plotting
+#install.packages('latex2exp') # for mathematical expressions in plots
+#install.packages('iterators')
 
 library('foreach') 
 library('doParallel')
