@@ -17,15 +17,16 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarini"
 
 # Requirements {#requirements}
 
-```{r}
-#install.packages('foreach') # for using for-each notation in for loops
-#install.packages('doParallel') # for parallellisation
-#install.packages('VGAM') # for sampling from a laplace
-#install.packages('dplyr') # for using group by on the data from the simulation
-#install.packages('colorspace') # for plotting
-#install.packages('latex2exp') # for mathematical expressions in plots
-#install.packages('iterators')
-
+```{r eval=FALSE}
+install.packages('foreach') # for using for-each notation in for loops
+install.packages('doParallel') # for parallellisation
+install.packages('VGAM') # for sampling from a laplace
+install.packages('dplyr') # for using group by on the data from the simulation
+install.packages('colorspace') # for plotting
+install.packages('latex2exp') # for mathematical expressions in plots
+install.packages('iterators')
+```
+```{r echo=FALSE}
 library('foreach') 
 library('doParallel')
 library('VGAM') 
@@ -471,8 +472,8 @@ $$
 
 ```{r}
 # custom CDF that induces sparsity
-pfunc <- function(p, pi=.5) pi * pbeta(p,20,2) + (1 - pi) * pbeta(p,.1,.5)
-dfunc <- function(x, pi=.5) pi * dbeta(x,32,2) + (1 - pi) * dbeta(x,2,32)
+pfunc <- function(p, pi=.5) pi * pbeta(p,20,2) + (1 - pi) * pbeta(p,2,30)
+dfunc <- function(x, pi=.5) pi * dbeta(x,20,2) + (1 - pi) * dbeta(x,2,30)
 
 # function that computes the inverse of another
 inverse = function(fn, interval = NULL, lower = min(interval), upper = max(interval), ...){
@@ -517,26 +518,22 @@ legend('topright',
 We will run the simulation with the same parameters for $n$, $\epsilon$ and $m$ and for the same number of times $M$. We also have $\pi \; \epsilon \; \{0.25, 0.5, 0.75\}$ as an additional parameter.
 
 ```{r}
-pi_values = c(.25,.5,.75)
 out_new = data.frame()
 
-hyperparameter_grid = expand.grid(n = n_values, bins = bins_values, eps = eps_values, pi = pi_values)
+hyperparameter_grid = expand.grid(n = n_values, bins = bins_values, eps = eps_values)
 
 for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
-            for (pi in pi_values)   {
-                sim_result = mise_sim(
-                  n, 
-                  n_bins, 
-                  eps, 
-                  sim_size = M, 
-                  rdist=rfunc,
-                  dist = dfunc)
-                sim_result$pi = pi
-                out_new = rbind(out_new, sim_result)
-            }
-        }
+              sim_result = mise_sim(
+                n, 
+                n_bins, 
+                eps, 
+                sim_size = M, 
+                rdist= rfunc,
+                dist = dfunc)
+              out_new = rbind(out_new, sim_result)
+          }
     }
 }
 ```
@@ -552,7 +549,7 @@ First, we group the data, however this time we also group on $\pi$ in addition t
 ```{r}
 # group data
 mise_data_group_pi <- out_new %>%
-  group_by(eps, n, bins, pi) %>%
+  group_by(eps, n, bins) %>%
   dplyr::summarize(mise_original_mean = mean(mise_original),
                    mise_original_min = min(mise_original),
                    mise_original_max = max(mise_original),
@@ -566,28 +563,11 @@ mise_data_group_pi <- out_new %>%
 
 Finally, we create one subset of the data for each value of $\pi$. We do this because splitting the data across three plots, each with their own $\pi$, makes the visualisation more readable.
 
-```{r}
-pi_025 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.25)
-pi_05 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.5)
-pi_075 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.75)
-```
-
-### Plot pi = 0.25.
-
-```{r}
-plot_mise_lines(pi_025, n_values, eps_values, pi = 0.25)
-```
-
 ### Plot pi = 0.5.
 
-```{r}
+```{r echo=FALSE}
+pi_05 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.5)
 plot_mise_lines(pi_05, n_values, eps_values, pi = 0.5)
-```
-
-### Plot pi = 0.75.
-
-```{r}
-plot_mise_lines(pi_075, n_values, eps_values, pi = 0.75)
 ```
 
 ## 2.4 Bonus
@@ -611,5 +591,4 @@ for (i in 1:n.sim) {
 }
 sum(ratio <= exp(eps)) / n.sim
 ```
-
-#### TODO : for some reasone it appears that differential privacy isn't always ensured?
+As we can see the differential privacy is ensured most of the times
