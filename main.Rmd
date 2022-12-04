@@ -569,6 +569,51 @@ Finally, we create one subset of the data for each value of $\pi$. We do this be
 pi_05 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.5)
 plot_mise_lines(pi_05, n_values, eps_values, pi = 0.5)
 ```
+## 2.3 Data Collection
+For this exercise we decided to carry out an analysis of alcohol consumption during the weekend on average. To do this we created a form on Google asking a simple question: "How much do you spend on drinks at the weekend ?" and shared it with our friends and acquaintances collecting a total of 80 answers. At this point we privatized the data collection using the perturbed histogram approach. We chose the following parameters:
+
+-   $m=n^{d/(2+d)}$ where $\large m$ is the number of bins of the histograms and $\large n$ is the length of the sample size (in this case it is 80).
+-   $\large \epsilon =0.1$ we chose this $\large \epsilon$ so that the data would be quite privatized, but without losing the relevant statistics adding too much noise.
+-   $\large k=80$ the number of samples got from the perturbed histogram equal to $n$.
+```{r}
+dataframe <- read.csv('Survey.csv') ## read rhe dataframe created from the survey
+
+## rename the columns
+colnames(dataframe)[1]='People' 
+colnames(dataframe)[2]='Money'
+dataframe <- subset(dataframe,dataframe[2]<30)
+
+summary(dataframe) ## main statistics 
+```
+```{r}
+#Hyperparameters chosen 
+n=length(dataframe$Money)
+m = n^(1 / (2 + 1))
+eps=0.1
+k=80
+```
+```{r}
+## Create the histogram of frequencies from the column of our dataset
+survey_hist <- hist((dataframe$'Money'),breaks=m,plot=F)
+
+## Perturbe the histogram with the same  function of 2.1
+survey_perturbe <- l_perturbe(survey_hist,variance  = 8/(eps)^2)
+```
+```{r}
+set.seed(2352272)
+sample_survey_hist <- (sample(survey_perturbe$breaks,k,replace=T)) ## sampling from  the perturbed histogram
+dataframe_perturbe <- data.frame(people=seq(1,k),money=sample_survey_hist) ## create the new dataframe privatized
+write.csv(dataframe_perturbe,'Priv_Data',row.names = F) # save the new dataframe in a csv file
+```
+What happen upon privatization? Well, the new dataset created via the perturbed histogram will present new values for each respondent making it impossible to determine who said what. However, the main statistics/summaries are preserved net of a small loss. The main statistics to reproduce are: mean, 1st/3rd quantile, median and mode.
+
+```{r}
+df_perturbed=read.csv('Priv_Data')
+summary(df_perturbed)
+```
+
+
+
 
 ## 2.4 Bonus
 
