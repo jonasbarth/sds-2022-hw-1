@@ -5,25 +5,176 @@ date: "2022-11-20"
 author: "Jonas Barth, Mattia Castaldo, Matteo Migliarini"
 ---
 
-# 2. Differential Privacy
+# Index
 
-# 2.1 Univariate Differential Privacy
+-   [Requirements](#requirements)
+-   [Stat4Race](#1.-stat4race)
+-   [Differential Privacy](#2.-differential-privacy)
+    -   [Univariate Differential Privacy](#2.1.-univariate-differential-privacy)
+    -   [Sampling from a different distribution](#2.2.-sampling-from-a-different-distribution)
+    -   [Privatised Dataset](#2.3.-privatised-dataset)
+    -   [Bonus Question](#2.4.-bonus-question)
+
+# Requirements {#requirements}
+
+```{r}
+install.packages('foreach') # for using for-each notation in for loops
+install.packages('doParallel') # for parallellisation
+install.packages('VGAM') # for sampling from a laplace
+install.packages('dplyr') # for using group by on the data from the simulation
+install.packages('colorspace') # for plotting
+install.packages('latex2exp') # for mathematical expressions in plots
+install.packages('iterators')
+
+library('foreach') 
+library('doParallel')
+library('VGAM') 
+library('dplyr') 
+library('colorspace') 
+library('latex2exp') 
+library('iterators')
+
+registerDoParallel(cores = detectCores())
+```
+
+# 1. Stat4Race {#1.-stat4race}
+
+### Simulation function:
+
+Given as input a population size `M`, the `sim` function simulates `M` times $T \sim |\{Y_1..Y_n, \ Y_n > X\}|$. At first it generates a uniform vector of size $M$, which will be $X$, then it samples $M \times b$ uniform values and puts them in a matrix, where $b$ is the base step. At this iteration $b$ values are generated for each of the $M$ individuals in the population, and if the $j$-th individual contains a value major than $X$ in the vector $M_{j,k} > X \ \ \forall k \in \{1..b\}$ then the the first k in which this happens is taken and saved in the vector `res`. Then the process is repeated through recursion for all those values that still haven't found a solution but this time with an increase of the samples extracted for each variable. So if the number of individuals that now found a solution is $M_i$ at the i-th step: 1. We sample a random uniform $(M-M_i) \times b^i$ matrix. 2. We check which of the individuals has terminated its course. 3. If there are no more survivors we stop the execution, otherwise we continue with the remaining $M_{i+1}$.
+
+```{r}
+sim <- function(X, steps.base=10, i=1){
+    M = length(X)
+    steps.now = min(steps.base^i, 1e7)
+
+    y <- matrix(
+        runif(steps.now * M), 
+        nrow = M)
+    trespass = y>X                  # for each row we see which value is over its X
+    over = ifelse(
+        rowSums(trespass)==0,       # if no trespasses for that row
+        0,                          # then it's 0
+        max.col(trespass, "first")) # else it's the first of the trespasses
+
+    rm(y, trespass)                 # we clean the memory by releasing unused vectors
+    miss.vars = which(over==0)      # we update the missing values
+    miss.n = length(miss.vars)                     
+    i = i + 1
+    if (miss.n != 0) {
+    # if there are still missing variables we repeat the process through recursion
+        remainder = sim(X = X[miss.vars], i=i) + steps.now
+        over[miss.vars] = remainder
+    }
+
+    return(over)
+}
+sim(runif(100))
+```
+
+If now want to analyze this function we can notice a few things:
+
+-   at the beginning only a few of variables is extracted for each individual, this is because most of the individuals are short lived and will be gone after no more than 10 steps.
+-   as the iterations go on the number of steps for each iteration increases exponentially $b^i$, this is because while with a large population we were restricted in the size of the steps due to memory limitations, when the population tends to decrease exponentially, we can exponentially increase the size of samples per iteration.
+-   the population surviving to the next iteration is actually a bad event for our algorithm, as we have to resort to use the while loop. That's also why we want to increase the size of samples per iteration $b^i$, as doing so will guarantee us a faster extermination of our population.
+-   by doing some empirical testing we can see that the number of iterations we have per each function call is usually in the order of $O(log(M))$
+
+We can now confront the output of our simulation with the $pdf$ of T, noticing that there's a good similarity between the two:
+
+```{r}
+set.seed(2008201)
+
+T_var = sim(10000)
+hist(T_var, breaks = 10000, xlim=c(1,50), prob=T)
+curve(1/x/(x+1), col='orange', lwd=3, add=T)
+```
+
+### Simulations
+
+Finally we do the simulations, note that we split everything into 10 threads to speed up computing:
+
+```{r}
+set.seed(13112221)
+
+M = 10^(2:7)
+n.threads = 10
+n.simulations = 8
+df = data.frame()
+
+for(i in 1:n.simulations) {
+    for(m in M) {
+        beg <- Sys.time()
+        r = foreach(idx=1:n.threads, .combine=c) %dopar% {
+            sim(runif(m/n.threads))
+        }
+        fin<- Sys.time() - beg
+
+        # store results
+        row = data.frame(size=m, time=fin, it=i, mean=mean(r), variance=var(r), median=median(r))
+        df = rbind(df, row)
+    }
+}
+df
+```
+
+We can then compute some summaries over our simulations:
+
+```{r}
+# read summaries from simulations on Google Colab
+df = read.csv('simulations.csv') 
+
+summaries <- df %>%
+  group_by(size) %>%
+  dplyr::summarize(
+    mean_time = mean(time),
+    median_time = median(time),
+    expected = mean(mean),
+    variance = mean(variance),
+    median = median(median)
+  ) %>%
+  as.data.frame()
+summaries
+```
+
+This is the **mean** of the values, and as we can expect (since $\mathbb{E}T \to \infty$) it tends to grow as the size of the simulation grows:
+
+```{r}
+plot(
+    summaries[c('size', 'expected')],
+    type = "l", 
+    log='x',
+    lwd=5, 
+    col='green', 
+    xlab='Population Size', 
+    ylab='Mean', 
+    main='Mean per size of input')
+
+```
+
+This is the time it takes, vs some linear function:
+
+```{r}
+plot(
+    summaries[c('size', 'median_time')],
+    type = "l", 
+    log='x',
+    lwd=5, 
+    col='orchid', 
+    xlab='Population Size', 
+    ylab='time [s]', 
+    main='Time per size of input')
+curve(x/1e5, add=T, lwd=1, type='p', from=min(df$size), to=max(df$size))
+```
+
+# 2. Differential Privacy {#2.-differential-privacy}
+
+# 2.1. Univariate Differential Privacy {#2.1.-univariate-differential-privacy}
 
 Index
 
--   [Requirements](#requirements)
 -   [Original and Perturbed Histogram Example](#original-and-perturbed-histogram-example)
 -   [Simulation](#simulation)
 -   [Plotting](#plotting)
-
-## Requirements {#requirements}
-
-```{r}
-require('VGAM') # for sampling from a laplace
-require("dplyr") # for using group by on the data from the simulation
-require("colorspace") # for plotting
-require("latex2exp") # for mathematical expressions in plots
-```
 
 ## Original and Perturbed Histogram Example {#original-and-perturbed-histogram-example}
 
@@ -54,7 +205,7 @@ plot(original_hist,
      main = paste("Histogram of", n ,"samples from a Beta(10, 10) distribution"))
 ```
 
-### Perturbed Histogram
+### Perturbed Histogram {#perturbed-histogram}
 
 Since we have to create many perturbed histograms, we will put this logic into a function for reusability.
 
@@ -191,21 +342,13 @@ sim_data
 
 ## Plotting {#plotting}
 
-### Absolute MISE Differences
+### Preparing Data for Plotting
 
-We want to show how the absolute difference between the two calculated $MISE$ values varies across the different combinations of hyper parameters.
-
-#### Preparing Data for Plotting
-
-There are 3 steps in the data preparation process:
-
-1.  Calculate the absolute difference between the two $MISE$ values.
-2.  Group the data by epsilon value, sample size (n), and number of bins.
-3.  Get a subset for each possible (sample size, epsilon) pair. Four in total.
+We want to group the data by epsilon value, sample size (n), and number of bins, so that we can plot the MISE values as a function of the number of bins.
 
 ```{r}
 
-# 2. group data
+# group data
 mise_data_group <- sim_data %>%
   group_by(eps, n, bins) %>%
   dplyr::summarize(mise_original_mean = mean(mise_original),
@@ -217,21 +360,12 @@ mise_data_group <- sim_data %>%
   as.data.frame()
 ```
 
-#### Parameters for plotting
+### Function for a single plot
 
-```{r}
-colours = rainbow_hcl(2)
-lwd = 4
-legend_names = c("n = 100, eps = 0.1", "n = 100, eps = 0.001", "n = 1000, eps = 0.1", "n = 1000, eps = 0.001")
-```
+This function plots a line plot with two lines:
 
-### Original Mise Variation
-
-In the 4 plots below we see the average: \* MISE value for the original histogram. \* MISE value for the perturbed histogram. \* Absolute difference between the MISE for the original histogram and MISE for the perturbed histogram.
-
-#### Function for a single plot
-
-This function plots a line plot with three lines: \* mean of the original MISE \* mean of the perturbed MISE \* mean of the MISE difference
+-   mean of the original MISE.
+-   mean of the perturbed MISE.
 
 ```{r}
 plot_mise_values = function(mise_data, main, sub, colours, lwd = 3) {
@@ -249,10 +383,12 @@ plot_mise_values = function(mise_data, main, sub, colours, lwd = 3) {
 }
 ```
 
-#### Plotting
+### Plotting
+
 The 4 plots below show the:
-* original $MISE$
-* perturbed $MISE$
+
+-   $MISE$ value for the original histogram.
+-   $MISE$ value for the perturbed histogram.
 
 for the 4 combinations of the sample sizes $n \: \in \: \{100, 1000}$ and the epsilon values $\epsilon \: \in \{0.001, 0.1\}$.
 
@@ -260,30 +396,45 @@ For a small privacy ratio $\epsilon = 0.001$, we can see that the $MISE$ of the 
 
 One thing that is common across all 4 plots is that there is a decrease in the perturbed $MISE$ when moving from $5$ to $10$ bins. For $MISE$ that have $\epsilon = 0.1$, this initial decrease is then followed by a steady increase.
 
-```{r echo=FALSE}
-plot_n_eps = function(mise_data) {
-  line_colours = rainbow_hcl(2)
+```{r}
 
-  mise_data_1 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.1)
-  mise_data_2 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.001)
-  mise_data_3 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.1)
-  mise_data_4 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.001)
+plot_mise_lines = function(mise_data, n_values, eps_values, pi = NULL) {
+  line_colours = rainbow_hcl(2)
+ 
+  mise_data_1 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[1])
+  mise_data_2 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[2])
+  mise_data_3 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[1])
+  mise_data_4 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[2])
 
   # Create a layout for the 4 plots and the common legend
   layout(matrix(c(1,2,5,3,4,5), ncol=2, nrow=3), heights=c(6, 6, 2))
 
+  main_title = paste("MISE values over", M, "Simulations.")
+  subtitle1 = paste("n = ", n_values[1], "eps = ", eps_values[1])
+  subtitle2 = paste("n = ", n_values[1], "eps = ", eps_values[2])
+  subtitle3 = paste("n = ", n_values[2], "eps = ", eps_values[1])
+  subtitle4 = paste("n = ", n_values[2], "eps = ", eps_values[2])
   # Plot the 4 plots
-  plot_mise_values(mise_data_1, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.1.", line_colours)
-  plot_mise_values(mise_data_2, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.001.", line_colours)
-  plot_mise_values(mise_data_3, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.1", line_colours)
-  plot_mise_values(mise_data_4, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.001.", line_colours)
+  if (!is.null(pi)) {
+      subtitle1 = paste(subtitle1, "pi = ", pi)
+      subtitle2 = paste(subtitle2, "pi = ", pi)
+      subtitle3 = paste(subtitle3, "pi = ", pi)
+      subtitle4 = paste(subtitle4, "pi = ", pi)
+  }
+  
+  subtitles = c(subtitle1, subtitle2, subtitle3, subtitle4)
+
+  plot_mise_values(mise_data_1, main_title, subtitles[1], line_colours)
+  plot_mise_values(mise_data_2, main_title, subtitles[2], line_colours)
+  plot_mise_values(mise_data_3, main_title, subtitles[3], line_colours)
+  plot_mise_values(mise_data_4, main_title, subtitles[4], line_colours)
 
   # Plot the legend
   par(mai=c(0,0,0,0))
   plot.new()
   legend("center",
          legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m})$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m})$")),
-         col = colours,
+         col = line_colours,
          lwd = 3,
          xpd = TRUE,
          horiz = TRUE,
@@ -291,11 +442,16 @@ plot_n_eps = function(mise_data) {
          seg.len=2)
 }
 
-plot_n_eps(mise_data_group)
-
+plot_mise_lines(mise_data_group, n = n_values, eps = eps_values)
 ```
 
 # 2.2 Sampling from a different distribution
+
+## Index
+
+-   [Perturbed Histogram](#perturbed-histogram)
+-   [Run Simulation](#run-simulation)
+-   [Plotting](#2.2.-plotting)
 
 We now sample from: $$
 p_X(x) = \pi \cdot \text{dbeta}(x | \alpha_1, \beta_1) + (1 -\pi )\cdot \text{dbeta}(x | \alpha_2, \beta_2)
@@ -341,7 +497,7 @@ legend('topright',
        lwd = 10)
 ```
 
-## Run Simulation
+## Run Simulation {#run-simulation}
 
 We will run the simulation with the same parameters for $n$, $\epsilon$ and $m$ and for the same number of times $M$. We also have $\pi \; \epsilon \; \{0.25, 0.5, 0.75\}$ as an additional parameter.
 
@@ -364,16 +520,16 @@ for (n in n_values) {
 }
 ```
 
-## Plotting
+## Plotting {#2.2.-plotting}
 
 Like in the plots for question 2.1, we will show how the two calculated $MISE$ values vary across the different combinations of hyper parameters.
 
-
 ### Group Data
+
 First, we group the data, however this time we also group on $\pi$ in addition to the other parameters.
 
 ```{r}
-# 2. group data
+# group data
 mise_data_group_pi <- out_new %>%
   group_by(eps, n, bins, pi) %>%
   dplyr::summarize(mise_original_mean = mean(mise_original),
@@ -395,53 +551,28 @@ pi_05 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.5)
 pi_075 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.75)
 ```
 
-### Function to Plot Original and Perturbed MISE.
-```{r}
-plot_multiple_mise = function(mise_data, main_title, pi) {
-  line_colours = rainbow_hcl(2)
-
-  mise_data_1 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.1)
-  mise_data_2 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.001)
-  mise_data_3 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.1)
-  mise_data_4 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.001)
-
-  # Create a layout for the 4 plots and the common legend
-  layout(matrix(c(1,2,5,3,4,5), ncol=2, nrow=3), heights=c(6, 6, 2))
-
-  # Plot the 4 plots
-  plot_mise_values(mise_data_1, main = main_title, paste("n = 100, eps = 0.1, pi = ", pi), line_colours)
-  plot_mise_values(mise_data_2, main = main_title, paste("n = 100, eps = 0.001, pi = ", pi), line_colours)
-  plot_mise_values(mise_data_3, main = main_title, paste("n = 1000, eps = 0.1, pi = ", pi), line_colours)
-  plot_mise_values(mise_data_4, main = main_title, paste("n = 1000, eps = 0.001, pi = ", pi), line_colours)
-
-    # Plot the legend
-  par(mai=c(0,0,0,0))
-  plot.new()
-  legend("center",
-         legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m})$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m})$")),
-         col = line_colours,
-         lwd = 3,
-         xpd = TRUE,
-         horiz = TRUE,
-         cex = 1,
-         seg.len=2)
-}
-```
-
 ### Plot pi = 0.25.
+
 ```{r}
-plot_multiple_mise(pi_025, paste("MISE values over", M, "Simulations."), pi = 0.25)
+plot_mise_lines(pi_025, n_values, eps_values, pi = 0.25)
 ```
+
 ### Plot pi = 0.5.
+
 ```{r}
-plot_multiple_mise(pi_05, paste("MISE values over", M, "Simulations."), pi = 0.5)
+plot_mise_lines(pi_05, n_values, eps_values, pi = 0.5)
 ```
+
 ### Plot pi = 0.75.
+
 ```{r}
-plot_multiple_mise(pi_075, paste("MISE values over", M, "Simulations."), pi = 0.75)
+plot_mise_lines(pi_075, n_values, eps_values, pi = 0.75)
 ```
+
 ## 2.4 Bonus
+
 We want to perform some simulations to test whether our mechanism ensures $\epsilon$ differential privacy:
+
 ```{r}
 n.sim = 100
 ratio = numeric(n.sim)
@@ -459,4 +590,5 @@ for (i in 1:n.sim) {
 }
 sum(ratio <= exp(eps)) / n.sim
 ```
+
 #### TODO : for some reasone it appears that differential privacy isn't always ensured?
