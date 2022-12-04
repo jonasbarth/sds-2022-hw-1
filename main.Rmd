@@ -324,10 +324,6 @@ for(rowname in rownames(hyperparameter_grid)) {
 }
 ```
 
-```{r}
-sim_data
-```
-
 ## Plotting {#plotting}
 
 ### Preparing Data for Plotting
@@ -378,7 +374,7 @@ The 4 plots below show the:
 -   $MISE$ value for the original histogram.
 -   $MISE$ value for the perturbed histogram.
 
-for the 4 combinations of the sample sizes $n \: \in \: \{100, 1000}$ and the epsilon values $\epsilon \: \in \{0.001, 0.1\}$.
+for the 4 combinations of the sample sizes $n \: \in \: \{100, 1000\}$ and the epsilon values $\epsilon \: \in \{0.001, 0.1\}$.
 
 For a small privacy ratio $\epsilon = 0.001$, we can see that the $MISE$ of the perturbed histogram initially has a higher value that for a privacy ratio of $\epsilon = 0.1$. Also, a larger the sample size $n$ for the perturbed $MISE$ also corresponds to a higher initial $MISE$ when comparing values that have the same value for $\epsilon$. E.g. For $\epsilon = 0.001$, the perturbed $MISE$ for the sample size $n = 100$ starts at around $6$, whereas the perturbed $MISE$ for the sample size $n = 1000$ starts at around $10$. For small sample sizes $n = 100$, both the original $MISE$ starts off close to $0$, however with an increase in the number of bins, it approaches $1$.
 
