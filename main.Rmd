@@ -472,9 +472,7 @@ $$
 ```{r}
 # custom CDF that induces sparsity
 pfunc <- function(p, pi=.5) pi * pbeta(p,20,2) + (1 - pi) * pbeta(p,.1,.5)
-dfunc <- function(x, pi=.5) pi * dbeta(x,20,2) + (1 - pi) * dbeta(x,2,20)
-
-curve(dfunc, 0,1)
+dfunc <- function(x, pi=.5) pi * dbeta(x,32,2) + (1 - pi) * dbeta(x,2,32)
 
 # function that computes the inverse of another
 inverse = function(fn, interval = NULL, lower = min(interval), upper = max(interval), ...){
@@ -485,6 +483,8 @@ inverse = function(fn, interval = NULL, lower = min(interval), upper = max(inter
 
 # Quantile function of the custom CDF
 qfunc <- inverse(pfunc, interval = c(0,1))
+n.approx_size = (0:1e4)/1e4
+qfunc <- approxfun(n.approx_size, qfunc(n.approx_size))
 # Quantile transformation
 rfunc <- function(n) qfunc(runif(n))
 
