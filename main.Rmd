@@ -9,6 +9,7 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarini"
 
 -   [Requirements](#requirements)
 -   [Stat4Race](#1.-stat4race)
+    -   [1kg gelato entry](#1.1-gelato)
 -   [Differential Privacy](#2.-differential-privacy)
     -   [Univariate Differential Privacy](#2.1.-univariate-differential-privacy)
     -   [Sampling from a different distribution](#2.2.-sampling-from-a-different-distribution)
@@ -17,7 +18,7 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarini"
 
 # Requirements {#requirements}
 
-```{r eval=FALSE}
+```{r echo=FALSE, eval=FALSE}
 install.packages('foreach') # for using for-each notation in for loops
 install.packages('doParallel') # for parallellisation
 install.packages('VGAM') # for sampling from a laplace
@@ -27,7 +28,7 @@ install.packages('latex2exp') # for mathematical expressions in plots
 install.packages('iterators')
 ```
 
-```{r echo=FALSE}
+```{r results='hide'}
 library('foreach') 
 library('doParallel')
 library('VGAM') 
@@ -116,14 +117,13 @@ for(i in 1:n.simulations) {
         df = rbind(df, row)
     }
 }
-df
 ```
 
 We can then compute some summaries over our simulations:
 
 ```{r echo=FALSE}
 # read summaries from simulations on Google Colab
-df = read.csv('simulations.csv') 
+df = read.csv('sim_1.csv') 
 
 summaries <- df %>%
   group_by(size) %>%
@@ -174,7 +174,8 @@ legend('topleft',
 
 ```
 
-Finally: our entry to try to win the 1kg gelato:
+#### Gelato Entry {#1.1-gelato}
+Finally: our entry to try to win the 1kg gelato: 
 
 ```{r echo=FALSE}
 summaries[c('size', 'median_time')]
@@ -339,7 +340,7 @@ mise_sim = function(n,
 
 We run the simulation $M$ times for all possible hyperparameter combinations. The results are saved into a dataframe.
 
-```{r 2.1 Simulation}
+```{r 2.1 Simulation, eval=FALSE}
 sim_data = data.frame()
 
 # Create a grid with all possible hyperparameter combinations
@@ -361,7 +362,7 @@ for(rowname in rownames(hyperparameter_grid)) {
 
 We want to group the data by epsilon value, sample size (n), and number of bins, so that we can plot the MISE values as a function of the number of bins.
 
-```{r}
+```{r eval=FALSE}
 # group data
 mise_data_group <- sim_data %>%
   group_by(eps, n, bins) %>%
@@ -374,12 +375,22 @@ mise_data_group <- sim_data %>%
   as.data.frame()
 ```
 
-### Function for a single plot
+```{r echo=FALSE}
+mise_data_group = read.csv('sim_2-1.csv')
+```
 
-This function plots a line plot with two lines:
+### Plotting
 
--   mean of the original MISE.
--   mean of the perturbed MISE.
+The 4 plots below show the:
+
+-   $MISE$ value for the original histogram.
+-   $MISE$ value for the perturbed histogram.
+
+for the 4 combinations of the sample sizes $n \: \in \: \{100, 1000\}$ and the epsilon values $\epsilon \: \in \{0.001, 0.1\}$.
+
+For a small privacy ratio $\epsilon = 0.001$, we can see that the $MISE$ of the perturbed histogram initially has a higher value that for a privacy ratio of $\epsilon = 0.1$. Also, a larger the sample size $n$ for the perturbed $MISE$ also corresponds to a higher initial $MISE$ when comparing values that have the same value for $\epsilon$. E.g. For $\epsilon = 0.001$, the perturbed $MISE$ for the sample size $n = 100$ starts at around $6$, whereas the perturbed $MISE$ for the sample size $n = 1000$ starts at around $10$. For small sample sizes $n = 100$, both the original $MISE$ starts off close to $0$, however with an increase in the number of bins, it approaches $1$.
+
+One thing that is common across all 4 plots is that there is a decrease in the perturbed $MISE$ when moving from $5$ to $10$ bins. For $MISE$ that have $\epsilon = 0.1$, this initial decrease is then followed by a steady increase.
 
 ```{r echo=FALSE}
 plot_mise_values = function(mise_data, mise_data2 = NULL, main, sub, colours, lwd = 3) {
@@ -405,20 +416,6 @@ plot_mise_values = function(mise_data, mise_data2 = NULL, main, sub, colours, lw
     lines(mise_data2$bins, mise_data2$mise_perturbed_mean, type = "l", lwd = lwd, col = colours[4])
 }
 ```
-
-### Plotting
-
-The 4 plots below show the:
-
--   $MISE$ value for the original histogram.
--   $MISE$ value for the perturbed histogram.
-
-for the 4 combinations of the sample sizes $n \: \in \: \{100, 1000\}$ and the epsilon values $\epsilon \: \in \{0.001, 0.1\}$.
-
-For a small privacy ratio $\epsilon = 0.001$, we can see that the $MISE$ of the perturbed histogram initially has a higher value that for a privacy ratio of $\epsilon = 0.1$. Also, a larger the sample size $n$ for the perturbed $MISE$ also corresponds to a higher initial $MISE$ when comparing values that have the same value for $\epsilon$. E.g. For $\epsilon = 0.001$, the perturbed $MISE$ for the sample size $n = 100$ starts at around $6$, whereas the perturbed $MISE$ for the sample size $n = 1000$ starts at around $10$. For small sample sizes $n = 100$, both the original $MISE$ starts off close to $0$, however with an increase in the number of bins, it approaches $1$.
-
-One thing that is common across all 4 plots is that there is a decrease in the perturbed $MISE$ when moving from $5$ to $10$ bins. For $MISE$ that have $\epsilon = 0.1$, this initial decrease is then followed by a steady increase.
-
 ```{r echo=FALSE}
 plot_mise_lines = function(mise_data, n_values, eps_values, pi = NULL) {
   line_colours = rainbow_hcl(2)
@@ -467,7 +464,7 @@ plot_mise_lines = function(mise_data, n_values, eps_values, pi = NULL) {
 plot_mise_lines(mise_data_group, n = n_values, eps = eps_values)
 ```
 
-# 2.2 Sampling from a different distribution
+# 2.2 Sampling from a different distribution {#2.2.-sampling-from-a-different-distribution}
 
 ## Index
 
@@ -526,10 +523,8 @@ legend('topright',
 
 We will run the simulation with the same parameters for $n$, $\epsilon$ and $m$ and for the same number of times $M$. We also have $\pi = 0.5$ as we noted that changing it didn't gave much of an effect on the results.
 
-```{r 2.2 Simulation}
+```{r 2.2 Simulation, eval=FALSE}
 out_new = data.frame()
-
-hyperparameter_grid = expand.grid(n = n_values, bins = bins_values, eps = eps_values)
 
 for (n in n_values) {
     for (eps in eps_values) {
@@ -555,7 +550,7 @@ Like in the plots for question 2.1, we will show how the two calculated $MISE$ v
 
 First, we group the data, however this time we also group on $\pi$ in addition to the other parameters.
 
-```{r}
+```{r, eval=FALSE}
 # group data
 mise_data_group_pi <- out_new %>%
   group_by(eps, n, bins) %>%
@@ -568,11 +563,11 @@ mise_data_group_pi <- out_new %>%
   as.data.frame()
 ```
 
-### Subset Data
+```{r echo=FALSE}
+mise_data_group_pi = read.csv('sim_2-2.csv')
+```
 
-Finally, we create one subset of the data for each value of $\pi$. We do this because splitting the data across three plots, each with their own $\pi$, makes the visualisation more readable.
-
-### Plot pi = 0.5.
+### Plot $\pi = 0.5$
 
 ```{r echo=FALSE}
 plot_mise_lines2 = function(mise_data, mise_data2, n_values, eps_values, pi = NULL) {
@@ -619,12 +614,15 @@ plot_mise_lines2 = function(mise_data, mise_data2, n_values, eps_values, pi = NU
          cex = 1,
          seg.len=2)
 }
-
-pi_05 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.5)
-plot_mise_lines2(mise_data_group, pi_05, n = n_values, eps = eps_values)
 ```
 
-# 2.3 Data Collection
+As we can see the MISE for the perturbed histograms tends to be higher than the original, as expected. Furthermore we can observe that the perturbed version of the *mixed* model tends to have more information loss, as seen by its higher MISE values.
+
+```{r}
+plot_mise_lines2(mise_data_group,mise_data_group_pi, n = n_values, eps = eps_values)
+```
+
+# 2.3 Data Collection {#2.3.-privatised-dataset}
 
 For this exercise we decided to carry out an analysis of alcohol consumption during the weekend among our colleagues. To do this we created a form on Google asking a simple question: "How much do you spend on drinks at the weekend ?" and shared it with our friends and acquaintances collecting a total of 80 answers. At this point we privatized the data collection using the perturbed histogram approach. We chose the following parameters:
 
@@ -664,7 +662,7 @@ survey_perturbe <- l_perturbe(survey_hist,variance = 8/(eps)^2)
 set.seed(2352272)
 sample_survey_hist <- (sample(survey_perturbe$breaks,k,replace=T)) ## sampling from  the perturbed histogram
 dataframe_perturbe <- data.frame(people=seq(1,k),money=sample_survey_hist) ## create the new dataframe privatized
-write.csv(dataframe_perturbe,'Priv_Data',row.names = F) # save the new dataframe in a csv file
+write.csv(dataframe_perturbe,'Priv_Data_2-3.csv',row.names = F) # save the new dataframe in a csv file
 ```
 
 What happen upon privatization? Well, the new dataset created via the perturbed histogram will present new values for each respondent making it impossible to determine who said what. However, the main statistics/summaries are preserved net of a small loss.
@@ -672,11 +670,11 @@ What happen upon privatization? Well, the new dataset created via the perturbed 
 #### The main statistics to reproduce are: mean, 1st/3rd quantile, median and mode.
 
 ```{r}
-df_perturbed=read.csv('Priv_Data')
+df_perturbed=read.csv('Priv_Data_2-3.csv')
 summary(df_perturbed$money)
 ```
 
-# 2.4 Bonus
+# 2.4 Bonus {#2.4.-bonus-question}
 
 We want to perform some simulations to test whether our mechanism ensures $\epsilon$ differential privacy:
 
