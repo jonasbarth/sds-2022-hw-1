@@ -282,14 +282,19 @@ At each simulation, we do the following:
 6.  Save the $MISE$ values and hyperparameters of this simulation run into a dataframe.
 
 ```{r}
-mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10, 10)) {
+mise_sim = function(n, 
+                    n_bins, 
+                    eps, 
+                    sim_size, 
+                    rdist = function(n) rbeta(n, 10, 10), 
+                    dist  = function(x) dbeta(x,10,10)) {
     
     out = data.frame()
     
     for (m in 1:sim_size) {
 
         # 1. sample from beta
-        b_sample = dist(n=n)
+        b_sample = rdist(n=n)
 
         # 2. create original hist
         original_hist = hist(b_sample, plot=F, breaks=n_bins - 1)
@@ -302,10 +307,10 @@ mise_sim = function(n, n_bins, eps, sim_size, dist=function(n) rbeta(n, 10, 10))
         d_perturbed = stepfun(perturbed_hist$breaks, c(0, perturbed_hist$density, 0))
         
         # 4. calculate mise original
-        mise_original = integrate(function(x) (dbeta(x, 10, 10) - d_original(x))^2, 0, 1, subdivisions = 1000)$value
+        mise_original = integrate(function(x) (dist(x) - d_original(x))^2, 0, 1, subdivisions = 1000)$value
 
         # 5. calculate mise perturbed
-        mise_perturbed = integrate(function(x) (dbeta(x, 10, 10) - d_perturbed(x))^2, 0, 1, subdivisions = 1000)$value
+        mise_perturbed = integrate(function(x) (dist(x) - d_perturbed(x))^2, 0, 1, subdivisions = 1000)$value
         
         # 6. save the MISE values and hyperparameters
         out = rbind(out, data.frame(m=m, n=n, eps=eps, bins=n_bins, mise_original=mise_original, mise_perturbed=mise_perturbed))
@@ -456,6 +461,9 @@ $$
 ```{r}
 # custom CDF that induces sparsity
 pfunc <- function(p, pi=.5) pi * pbeta(p,20,2) + (1 - pi) * pbeta(p,.1,.5)
+dfunc <- function(x, pi=.5) pi * dbeta(x,20,2) + (1 - pi) * dbeta(x,2,20)
+
+curve(dfunc, 0,1)
 
 # function that computes the inverse of another
 inverse = function(fn, interval = NULL, lower = min(interval), upper = max(interval), ...){
@@ -507,7 +515,13 @@ for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
             for (pi in pi_values)   {
-                sim_result = mise_sim(n, n_bins, eps, sim_size = M, dist=rfunc)
+                sim_result = mise_sim(
+                  n, 
+                  n_bins, 
+                  eps, 
+                  sim_size = M, 
+                  rdist=rfunc,
+                  dist = dfunc)
                 sim_result$pi = pi
                 out_new = rbind(out_new, sim_result)
             }
