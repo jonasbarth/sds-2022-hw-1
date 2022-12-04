@@ -14,9 +14,9 @@ require("latex2exp") # for mathematical expressions in plots
 
 For this exercise we decided to carry out an analysis of alcohol consumption during the weekend on average. To do this we created a form on Google asking a simple question: "How much do you spend on drinks at the weekend ?" and shared it with our friends and acquaintances collecting a total of 80 answers. At this point we privatized the data collection using the perturbed histogram approach. We chose the following parameters:
 
--   $m=n^{d/(2+d)}$ where $n$ is the sample size (in this case it is 80)
--   $epsilon =0.1$ we chose this $epsilon$ so that the data would be quite privatized, but without losing the relevant statistics adding too much noise
--   $k=80$ the number of samples got from the perturbed histogram equal to $n$
+-   $m=n^{d/(2+d)}$ where $\large m$ is the number of bins of the histograms and $\large n$ is the length of the sample size (in this case it is 80).
+-   $\large \epsilon =0.1$ we chose this $\large \epsilon$ so that the data would be quite privatized, but without losing the relevant statistics adding too much noise.
+-   $\large k=80$ the number of samples got from the perturbed histogram equal to $n$.
 
 ```{r}
 dataframe <- read.csv('Survey.csv') ## read rhe dataframe created from the survey
@@ -52,7 +52,7 @@ dataframe_perturbe <- data.frame(people=seq(1,k),money=sample_survey_hist) ## cr
 write.csv(dataframe_perturbe,'Priv_Data',row.names = F) # save the new dataframe in a csv file
 ```
 
-What happen upon privatization? Well, the new dataset created via the perturbed histogram will present new values for each respondent making it impossible to determine who said what. However, the main satistics/summaries are preserved net of a small loss.
+What happen upon privatization? Well, the new dataset created via the perturbed histogram will present new values for each respondent making it impossible to determine who said what. However, the main statistics/summaries are preserved net of a small loss. The main statistics to reproduce are: mean, 1st/3rd quantile, median and mode.
 
 ```{r}
 df_perturbed=read.csv('Priv_Data')
