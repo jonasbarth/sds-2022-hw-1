@@ -1,5 +1,5 @@
 ---
-title: "main"
+title: "Stat4DS Homework#1"
 output: html_document
 date: "2022-11-20"
 author: "Jonas Barth, Mattia Castaldo, Matteo Migliarini"
@@ -409,7 +409,7 @@ For a small privacy ratio $\epsilon = 0.001$, we can see that the $MISE$ of the 
 
 One thing that is common across all 4 plots is that there is a decrease in the perturbed $MISE$ when moving from $5$ to $10$ bins. For $MISE$ that have $\epsilon = 0.1$, this initial decrease is then followed by a steady increase.
 
-```{r}
+```{r echo=FALSE}
 
 plot_mise_lines = function(mise_data, n_values, eps_values, pi = NULL) {
   line_colours = rainbow_hcl(2)
@@ -515,9 +515,9 @@ legend('topright',
 
 ## Run Simulation {#run-simulation}
 
-We will run the simulation with the same parameters for $n$, $\epsilon$ and $m$ and for the same number of times $M$. We also have $\pi \; \epsilon \; \{0.25, 0.5, 0.75\}$ as an additional parameter.
+We will run the simulation with the same parameters for $n$, $\epsilon$ and $m$ and for the same number of times $M$. We also have $\pi = 0.5$ as we noted that changing it didn't gave much of an effect on the results.
 
-```{r}
+```{r 2.2 Simulation}
 out_new = data.frame()
 
 hyperparameter_grid = expand.grid(n = n_values, bins = bins_values, eps = eps_values)
@@ -591,4 +591,4 @@ for (i in 1:n.sim) {
 }
 sum(ratio <= exp(eps)) / n.sim
 ```
-As we can see the differential privacy is ensured most of the times
+As we can see the differential privacy is ensured most of the times.
