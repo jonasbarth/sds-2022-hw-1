@@ -1,0 +1,80 @@
+```{r}
+plot_mise_values = function(mise_data, mise_data2 = NULL, main, sub, colours, lwd = 3) {
+  
+  max_y = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean))
+  if (!is.null(mise_data2)) {
+    mise_data_max = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean))
+    mise_data2_max = max(c(mise_data2$mise_original_mean, mise_data2$mise_perturbed_mean))
+    max_y = max(mise_data_max, mise_data2_max)
+  } else {
+      max_y = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean))
+  }
+  plot(NULL,
+     xlim = c(min(bins_values), max(bins_values)),
+     ylim = c(0, max_y),
+
+     sub = sub)
+  lines(mise_data$bins, mise_data$mise_original_mean, type = "l", lwd = lwd, col = colours[1])
+  lines(mise_data$bins, mise_data$mise_perturbed_mean, type = "l", lwd = lwd, col = colours[2])
+  
+  if (!is.null(mise_data2))
+    lines(mise_data2$bins, mise_data2$mise_original_mean, type = "l", lwd = lwd, col = colours[3])
+    lines(mise_data2$bins, mise_data2$mise_perturbed_mean, type = "l", lwd = lwd, col = colours[4])
+}
+```{r}
+
+```{r}
+plot_mise_lines2 = function(mise_data, mise_data2, n_values, eps_values, pi = NULL) {
+  line_colours = rainbow_hcl(4)
+ 
+  mise_data_1 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[1])
+  mise_data_2 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[2])
+  mise_data_3 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[1])
+  mise_data_4 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[2])
+  
+  mise_data2_1 = subset(mise_data2, mise_data2$n == n_values[1] & mise_data2$eps == eps_values[1])
+  mise_data2_2 = subset(mise_data2, mise_data2$n == n_values[1] & mise_data2$eps == eps_values[2])
+  mise_data2_3 = subset(mise_data2, mise_data2$n == n_values[2] & mise_data2$eps == eps_values[1])
+  mise_data2_4 = subset(mise_data2, mise_data2$n == n_values[2] & mise_data2$eps == eps_values[2])
+
+  # Create a layout for the 4 plots and the common legend
+  layout(matrix(c(1,2,5,3,4,5), ncol=2, nrow=3), heights=c(6, 6, 2))
+
+  main_title = paste("MISE values over", M, "Simulations.")
+  subtitle1 = paste("n = ", n_values[1], "eps = ", eps_values[1])
+  subtitle2 = paste("n = ", n_values[1], "eps = ", eps_values[2])
+  subtitle3 = paste("n = ", n_values[2], "eps = ", eps_values[1])
+  subtitle4 = paste("n = ", n_values[2], "eps = ", eps_values[2])
+  # Plot the 4 plots
+  if (!is.null(pi)) {
+      subtitle1 = paste(subtitle1, "pi = ", pi)
+      subtitle2 = paste(subtitle2, "pi = ", pi)
+      subtitle3 = paste(subtitle3, "pi = ", pi)
+      subtitle4 = paste(subtitle4, "pi = ", pi)
+  }
+  
+  subtitles = c(subtitle1, subtitle2, subtitle3, subtitle4)
+
+  plot_mise_values(mise_data_1, mise_data2_1, main_title, subtitles[1], line_colours)
+  plot_mise_values(mise_data_2, mise_data2_2, main_title, subtitles[2], line_colours)
+  plot_mise_values(mise_data_3, mise_data2_3, main_title, subtitles[3], line_colours)
+  plot_mise_values(mise_data_4, mise_data2_4, main_title, subtitles[4], line_colours)
+
+  # Plot the legend
+  par(mai=c(0,0,0,0))
+  plot.new()
+  legend("center",
+         legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m}) (pure)$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m}) (pure)$"), TeX("$MISE(p_X, \\hat{p}_{n,m}) (mixed)$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m}) (mixed)$")),
+         col = line_colours,
+         lwd = 3,
+         xpd = TRUE,
+         horiz = TRUE,
+         cex = 1,
+         seg.len=2)
+}
+```
+
+The first thing that we can notice in this plot is that both the perturbed and original $MISE$ for the mixed model are increasing above the pure models when we move to a number of bins of 40 and above.
+```{r}
+plot_mise_lines2(mise_data_group, pi_05, n = n_values, eps = eps_values)
+```
