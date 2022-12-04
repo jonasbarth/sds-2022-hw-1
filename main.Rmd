@@ -7,6 +7,7 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
 
 # Index
 
+-   [Requirements](#requirements)
 -   [Stat4Race](#1.-stat4race)
 -   [Differential Privacy](#2.-differential-privacy)
     -   [Univariate Differential Privacy](#2.1.-univariate-differential-privacy)
@@ -14,25 +15,166 @@ author: "Jonas Barth, Mattia Castaldo, Matteo Migliarino"
     -   [Privatised Dataset](#2.3.-privatised-dataset)
     -   [Bonus Question](#2.4.-bonus-question)
 
+# Requirements {#requirements}
+
+```{r}
+install.packages('foreach') # for using for-each notation in for loops
+install.packages('doParallel') # for parallellisation
+install.packages('VGAM') # for sampling from a laplace
+install.packages('dplyr') # for using group by on the data from the simulation
+install.packages('colorspace') # for plotting
+install.packages('latex2exp') # for mathematical expressions in plots
+install.packages('iterators')
+
+library('foreach') 
+library('doParallel')
+library('VGAM') 
+library('dplyr') 
+library('colorspace') 
+library('latex2exp') 
+library('iterators')
+
+registerDoParallel(cores = detectCores())
+```
+
+# 1. Stat4Race {#1.-stat4race}
+
+### Simulation function:
+
+Given as input a population size `M`, the `sim` function simulates `M` times $T \sim |\{Y_1..Y_n, \ Y_n > X\}|$. At first it generates a uniform vector of size $M$, which will be $X$, then it samples $M \times b$ uniform values and puts them in a matrix, where $b$ is the base step. At this iteration $b$ values are generated for each of the $M$ individuals in the population, and if the $j$-th individual contains a value major than $X$ in the vector $M_{j,k} > X \ \ \forall k \in \{1..b\}$ then the the first k in which this happens is taken and saved in the vector `res`. Then the process is repeated through recursion for all those values that still haven't found a solution but this time with an increase of the samples extracted for each variable. So if the number of individuals that now found a solution is $M_i$ at the i-th step: 1. We sample a random uniform $(M-M_i) \times b^i$ matrix. 2. We check which of the individuals has terminated its course. 3. If there are no more survivors we stop the execution, otherwise we continue with the remaining $M_{i+1}$.
+
+```{r}
+sim <- function(X, steps.base=10, i=1){
+    M = length(X)
+    steps.now = min(steps.base^i, 1e7)
+
+    y <- matrix(
+        runif(steps.now * M), 
+        nrow = M)
+    trespass = y>X                  # for each row we see which value is over its X
+    over = ifelse(
+        rowSums(trespass)==0,       # if no trespasses for that row
+        0,                          # then it's 0
+        max.col(trespass, "first")) # else it's the first of the trespasses
+
+    rm(y, trespass)                 # we clean the memory by releasing unused vectors
+    miss.vars = which(over==0)      # we update the missing values
+    miss.n = length(miss.vars)                     
+    i = i + 1
+    if (miss.n != 0) {
+    # if there are still missing variables we repeat the process through recursion
+        remainder = sim(X = X[miss.vars], i=i) + steps.now
+        over[miss.vars] = remainder
+    }
+
+    return(over)
+}
+sim(runif(100))
+```
+
+If now want to analyze this function we can notice a few things:
+
+-   at the beginning only a few of variables is extracted for each individual, this is because most of the individuals are short lived and will be gone after no more than 10 steps.
+-   as the iterations go on the number of steps for each iteration increases exponentially $b^i$, this is because while with a large population we were restricted in the size of the steps due to memory limitations, when the population tends to decrease exponentially, we can exponentially increase the size of samples per iteration.
+-   the population surviving to the next iteration is actually a bad event for our algorithm, as we have to resort to use the while loop. That's also why we want to increase the size of samples per iteration $b^i$, as doing so will guarantee us a faster extermination of our population.
+-   by doing some empirical testing we can see that the number of iterations we have per each function call is usually in the order of $O(log(M))$
+
+We can now confront the output of our simulation with the $pdf$ of T, noticing that there's a good similarity between the two:
+
+```{r}
+set.seed(2008201)
+
+T_var = sim(10000)
+hist(T_var, breaks = 10000, xlim=c(1,50), prob=T)
+curve(1/x/(x+1), col='orange', lwd=3, add=T)
+```
+
+### Simulations
+
+Finally we do the simulations, note that we split everything into 10 threads to speed up computing:
+
+```{r}
+set.seed(13112221)
+
+M = 10^(2:7)
+n.threads = 10
+n.simulations = 8
+df = data.frame()
+
+for(i in 1:n.simulations) {
+    for(m in M) {
+        beg <- Sys.time()
+        r = foreach(idx=1:n.threads, .combine=c) %dopar% {
+            sim(runif(m/n.threads))
+        }
+        fin<- Sys.time() - beg
+
+        # store results
+        row = data.frame(size=m, time=fin, it=i, mean=mean(r), variance=var(r), median=median(r))
+        df = rbind(df, row)
+    }
+}
+df
+```
+
+We can then compute some summaries over our simulations:
+
+```{r}
+# read summaries from simulations on Google Colab
+df = read.csv('simulations.csv') 
+
+summaries <- df %>%
+  group_by(size) %>%
+  dplyr::summarize(
+    mean_time = mean(time),
+    median_time = median(time),
+    expected = mean(mean),
+    variance = mean(variance),
+    median = median(median)
+  ) %>%
+  as.data.frame()
+summaries
+```
+
+This is the **mean** of the values, and as we can expect (since $\mathbb{E}T \to \infty$) it tends to grow as the size of the simulation grows:
+
+```{r}
+plot(
+    summaries[c('size', 'expected')],
+    type = "l", 
+    log='x',
+    lwd=5, 
+    col='green', 
+    xlab='Population Size', 
+    ylab='Mean', 
+    main='Mean per size of input')
+
+```
+
+This is the time it takes, vs some linear function:
+
+```{r}
+plot(
+    summaries[c('size', 'median_time')],
+    type = "l", 
+    log='x',
+    lwd=5, 
+    col='orchid', 
+    xlab='Population Size', 
+    ylab='time [s]', 
+    main='Time per size of input')
+curve(x/1e5, add=T, lwd=1, type='p', from=min(df$size), to=max(df$size))
+```
+
 # 2. Differential Privacy {#2.-differential-privacy}
 
 # 2.1. Univariate Differential Privacy {#2.1.-univariate-differential-privacy}
 
 Index
 
--   [Requirements](#requirements)
 -   [Original and Perturbed Histogram Example](#original-and-perturbed-histogram-example)
 -   [Simulation](#simulation)
 -   [Plotting](#plotting)
-
-## Requirements {#requirements}
-
-```{r}
-require('VGAM') # for sampling from a laplace
-require("dplyr") # for using group by on the data from the simulation
-require("colorspace") # for plotting
-require("latex2exp") # for mathematical expressions in plots
-```
 
 ## Original and Perturbed Histogram Example {#original-and-perturbed-histogram-example}
 
@@ -189,6 +331,7 @@ sim_data
 ## Plotting {#plotting}
 
 ### Preparing Data for Plotting
+
 We want to group the data by epsilon value, sample size (n), and number of bins, so that we can plot the MISE values as a function of the number of bins.
 
 ```{r}
