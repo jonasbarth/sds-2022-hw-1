@@ -53,6 +53,7 @@ write.csv(dataframe_perturbe,'Priv_Data',row.names = F) # save the new dataframe
 ```
 
 What happen upon privatization? Well, the new dataset created via the perturbed histogram will present new values for each respondent making it impossible to determine who said what. However, the main satistics/summaries are preserved net of a small loss.
+The main statistics to reproduce are: mean, 1st/3rd quantile, median.
 
 ```{r}
 df_perturbed=read.csv('Priv_Data')
