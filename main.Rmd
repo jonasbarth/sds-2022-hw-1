@@ -250,29 +250,43 @@ One thing that is common across all 4 plots is that there is a decrease in the p
 
 ```{r}
 
-plot_n_eps = function(mise_data) {
+plot_mise_lines = function(mise_data, n_values, eps_values, pi = NULL) {
   line_colours = rainbow_hcl(2)
-
-  mise_data_1 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.1)
-  mise_data_2 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.001)
-  mise_data_3 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.1)
-  mise_data_4 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.001)
+ 
+  mise_data_1 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[1])
+  mise_data_2 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[2])
+  mise_data_3 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[1])
+  mise_data_4 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[2])
 
   # Create a layout for the 4 plots and the common legend
   layout(matrix(c(1,2,5,3,4,5), ncol=2, nrow=3), heights=c(6, 6, 2))
 
+  main_title = paste("MISE values over", M, "Simulations.")
+  subtitle1 = paste("n = ", n_values[1], "eps = ", eps_values[1])
+  subtitle2 = paste("n = ", n_values[1], "eps = ", eps_values[2])
+  subtitle3 = paste("n = ", n_values[2], "eps = ", eps_values[1])
+  subtitle4 = paste("n = ", n_values[2], "eps = ", eps_values[2])
   # Plot the 4 plots
-  plot_mise_values(mise_data_1, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.1.", line_colours)
-  plot_mise_values(mise_data_2, paste("MISE values over", M, "Simulations."), "n = 100, eps = 0.001.", line_colours)
-  plot_mise_values(mise_data_3, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.1", line_colours)
-  plot_mise_values(mise_data_4, paste("MISE values over", M, "Simulations."), "n = 1000, eps = 0.001.", line_colours)
+  if (!is.null(pi)) {
+      subtitle1 = paste(subtitle1, "pi = ", pi)
+      subtitle2 = paste(subtitle2, "pi = ", pi)
+      subtitle3 = paste(subtitle3, "pi = ", pi)
+      subtitle4 = paste(subtitle4, "pi = ", pi)
+  }
+  
+  subtitles = c(subtitle1, subtitle2, subtitle3, subtitle4)
+
+  plot_mise_values(mise_data_1, main_title, subtitles[1], line_colours)
+  plot_mise_values(mise_data_2, main_title, subtitles[2], line_colours)
+  plot_mise_values(mise_data_3, main_title, subtitles[3], line_colours)
+  plot_mise_values(mise_data_4, main_title, subtitles[4], line_colours)
 
   # Plot the legend
   par(mai=c(0,0,0,0))
   plot.new()
   legend("center",
          legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m})$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m})$")),
-         col = colours,
+         col = line_colours,
          lwd = 3,
          xpd = TRUE,
          horiz = TRUE,
@@ -280,8 +294,7 @@ plot_n_eps = function(mise_data) {
          seg.len=2)
 }
 
-plot_n_eps(mise_data_group)
-
+plot_mise_lines(mise_data_group, n = n_values, eps = eps_values)
 ```
 
 # 2.2 Sampling from a different distribution
@@ -359,50 +372,17 @@ pi_05 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.5)
 pi_075 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.75)
 ```
 
-### Function to Plot Original and Perturbed MISE.
-```{r}
-plot_multiple_mise = function(mise_data, main_title, pi) {
-  line_colours = rainbow_hcl(2)
-
-  mise_data_1 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.1)
-  mise_data_2 = subset(mise_data, mise_data$n == 100 & mise_data$eps == 0.001)
-  mise_data_3 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.1)
-  mise_data_4 = subset(mise_data, mise_data$n == 1000 & mise_data$eps == 0.001)
-
-  # Create a layout for the 4 plots and the common legend
-  layout(matrix(c(1,2,5,3,4,5), ncol=2, nrow=3), heights=c(6, 6, 2))
-
-  # Plot the 4 plots
-  plot_mise_values(mise_data_1, main = main_title, paste("n = 100, eps = 0.1, pi = ", pi), line_colours)
-  plot_mise_values(mise_data_2, main = main_title, paste("n = 100, eps = 0.001, pi = ", pi), line_colours)
-  plot_mise_values(mise_data_3, main = main_title, paste("n = 1000, eps = 0.1, pi = ", pi), line_colours)
-  plot_mise_values(mise_data_4, main = main_title, paste("n = 1000, eps = 0.001, pi = ", pi), line_colours)
-
-    # Plot the legend
-  par(mai=c(0,0,0,0))
-  plot.new()
-  legend("center",
-         legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m})$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m})$")),
-         col = line_colours,
-         lwd = 3,
-         xpd = TRUE,
-         horiz = TRUE,
-         cex = 1,
-         seg.len=2)
-}
-```
-
 ### Plot pi = 0.25.
 ```{r}
-plot_multiple_mise(pi_025, paste("MISE values over", M, "Simulations."), pi = 0.25)
+plot_mise_lines(pi_025, n_values, eps_values, pi = 0.25)
 ```
 ### Plot pi = 0.5.
 ```{r}
-plot_multiple_mise(pi_05, paste("MISE values over", M, "Simulations."), pi = 0.5)
+plot_mise_lines(pi_05, n_values, eps_values, pi = 0.5)
 ```
 ### Plot pi = 0.75.
 ```{r}
-plot_multiple_mise(pi_075, paste("MISE values over", M, "Simulations."), pi = 0.75)
+plot_mise_lines(pi_075, n_values, eps_values, pi = 0.75)
 ```
 ## 2.4 Bonus
 We want to perform some simulations to test whether our mechanism ensures $\epsilon$ differential privacy:
