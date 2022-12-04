@@ -260,8 +260,7 @@ For a small privacy ratio $\epsilon = 0.001$, we can see that the $MISE$ of the 
 
 One thing that is common across all 4 plots is that there is a decrease in the perturbed $MISE$ when moving from $5$ to $10$ bins. For $MISE$ that have $\epsilon = 0.1$, this initial decrease is then followed by a steady increase.
 
-```{r}
-
+```{r echo=FALSE}
 plot_n_eps = function(mise_data) {
   line_colours = rainbow_hcl(2)
 
@@ -303,10 +302,24 @@ p_X(x) = \pi \cdot \text{dbeta}(x | \alpha_1, \beta_1) + (1 -\pi )\cdot \text{db
 $$
 
 ```{r}
-func = function(n, pi =.5) pi * rbeta(n,.5,.3) + (1 - pi) * rbeta(n,.5,.1)
-h=hist(func(1000), plot=F)
+# custom CDF that induces sparsity
+pfunc <- function(p, pi=.5) pi * pbeta(p,20,2) + (1 - pi) * pbeta(p,.1,.5)
+
+# function that computes the inverse of another
+inverse = function(fn, interval = NULL, lower = min(interval), upper = max(interval), ...){
+    Vectorize(function(y){
+        uniroot(f=function(x){fn(x)-y}, lower=lower, upper=upper, ...)$root
+    })
+}
+
+# Quantile function of the custom CDF
+qfunc <- inverse(pfunc, interval = c(0,1))
+# Quantile transformation
+rfunc <- function(n) qfunc(runif(n))
+
+h=hist(rfunc(1000), plot=F)
 plot(h, main='Density of
-     p[X]',xlab = '', freq=F)
+     p[X]',xlab = '', freq=F, col='red', border='white')
 ```
 
 ## Perturbed Histogram
@@ -342,7 +355,7 @@ for (n in n_values) {
     for (eps in eps_values) {
         for (n_bins in bins_values) {
             for (pi in pi_values)   {
-                sim_result = mise_sim(n, n_bins, eps, sim_size = M, dist=func)
+                sim_result = mise_sim(n, n_bins, eps, sim_size = M, dist=rfunc)
                 sim_result$pi = pi
                 out_new = rbind(out_new, sim_result)
             }
