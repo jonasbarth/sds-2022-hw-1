@@ -81,11 +81,11 @@ If now want to analyze this function we can notice a few things:
 
 We can now confront the output of our simulation with the $pdf$ of T, noticing that there's a good similarity between the two:
 
-```{r echo=FALSE}
+```{r T_var, echo=FALSE}
 set.seed(2008201)
 
-T_var = sim(10000)
-hist(T_var, breaks = 10000, xlim=c(1,50), prob=T)
+T_var = sim(runif(1000))
+hist(T_var, breaks = 1:1000, xlim=c(1,50), prob=T)
 curve(1/x/(x+1), col='orange', lwd=3, add=T)
 ```
 
@@ -93,7 +93,7 @@ curve(1/x/(x+1), col='orange', lwd=3, add=T)
 
 Finally we do the simulations, note that we split everything into 10 threads to speed up computing:
 
-```{r}
+```{r S4R simulation, eval=FALSE}
 set.seed(13112221)
 
 M = 10^(2:7)
@@ -336,7 +336,7 @@ mise_sim = function(n,
 
 We run the simulation $M$ times for all possible hyperparameter combinations. The results are saved into a dataframe.
 
-```{r}
+```{r 2.1 Simulation}
 sim_data = data.frame()
 
 # Create a grid with all possible hyperparameter combinations
