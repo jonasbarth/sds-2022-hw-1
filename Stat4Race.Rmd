@@ -3,8 +3,8 @@ title: "Stat4Race"
 output:
   html_document:
     df_print: paged
-  html_notebook: default
   pdf_document: default
+  html_notebook: default
 editor_options: 
   markdown: 
     wrap: sentence
@@ -15,9 +15,9 @@ Look at colab [link](https://colab.research.google.com/drive/1CMkKzX2K0-l90rAZXl
 ### Requirements
 
 ```{r}
-install.packages('foreach')
-install.packages('doParallel')
-install.packages('dplyr')
+#install.packages('foreach')
+#install.packages('doParallel')
+#install.packages('dplyr')
 
 library(foreach)
 library(iterators)
@@ -77,11 +77,23 @@ That's also why we want to increase the size of samples per iteration $b^i$, as 
 We can now confront the output of our simulation with the $pdf$ of T, noticing that there's a good similarity between the two:
 
 ```{r}
-set.seed(2008201)
-
-T_var = sim(10000)
-hist(T_var, breaks = 10000, xlim=c(1,50), prob=T)
-curve(1/x/(x+1), col='orange', lwd=3, add=T)
+T_var = sim(runif(10000))
+hist(T_var, 
+     breaks = 1:100000, 
+     xlim=c(1,30), 
+     prob=T,
+     border='white',
+     main = '10K samples simulation vs T')
+curve(1/x/(x+1), 
+      col='orange', 
+      lwd=3, add=T)
+legend('topright', 
+       legend=c(
+         expression(T %~% frac(1,x*(x+1))),
+         'simulation'),
+       col=c('orange', 'grey'),
+       lwd=3
+)
 ```
 
 
@@ -94,7 +106,7 @@ set.seed(13112221)
 
 M = 10^(2:7)
 n.threads = 10
-n.simulations = 8
+n.simulations = 1
 df = data.frame()
 
 for(i in 1:n.simulations) {
@@ -114,10 +126,9 @@ df
 ```
 
 We can then compute some summaries over our simulations:
-```{r}
+```{r echo=FALSE, results='hide',message=FALSE}
 # read summaries from simulations on Google Colab
 df = read.csv('simulations.csv') 
-
 summaries <- df %>%
   group_by(size) %>%
   dplyr::summarize(
@@ -134,7 +145,7 @@ summaries
 
 This is the **mean** of the values, and as we can expect (since $\mathbb{E}T \to \infty$) it tends to grow as the size of the simulation grows:
 
-```{r}
+```{r echo=FALSE, results='hide',message=FALSE}
 plot(
     summaries[c('size', 'expected')],
     type = "l", 
@@ -146,18 +157,32 @@ plot(
     main='Mean per size of input')
 
 ```
+
+
 This is the time it takes, vs some linear function:
 
-```{r}
+```{r echo=FALSE, results='hide',message=FALSE}
 plot(
-    summaries[c('size', 'median_time')],
+    x = summaries$size,
+    y = summaries$median_time,
     type = "l", 
-    log='x',
+#    log='x',
     lwd=5, 
-    col='orchid', 
+    col='orange', 
     xlab='Population Size', 
     ylab='time [s]', 
     main='Time per size of input')
-curve(x/1e5, add=T, lwd=1, type='p', from=min(df$size), to=max(df$size))
+curve(x*3.7e-6, lwd=2, add=T, type='l', lty='dotdash', from=min(df$size), to=max(df$size))
+legend('topleft',
+       legend = c('linear time','simulation time'),
+       col = c('black', 'orange'),
+       lwd=4)
+
+```
+
+
+Finally: our entry to try to win the 1kg gelato:
+```{r echo=FALSE}
+summaries[c('size', 'median_time')]
 ```
 
