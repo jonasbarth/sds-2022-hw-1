@@ -362,7 +362,6 @@ for(rowname in rownames(hyperparameter_grid)) {
 We want to group the data by epsilon value, sample size (n), and number of bins, so that we can plot the MISE values as a function of the number of bins.
 
 ```{r}
-
 # group data
 mise_data_group <- sim_data %>%
   group_by(eps, n, bins) %>%
@@ -382,19 +381,28 @@ This function plots a line plot with two lines:
 -   mean of the original MISE.
 -   mean of the perturbed MISE.
 
-```{r}
-plot_mise_values = function(mise_data, main, sub, colours, lwd = 3) {
+```{r echo=FALSE}
+plot_mise_values = function(mise_data, mise_data2 = NULL, main, sub, colours, lwd = 3) {
   
   max_y = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean))
+  if (!is.null(mise_data2)) {
+    mise_data_max = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean))
+    mise_data2_max = max(c(mise_data2$mise_original_mean, mise_data2$mise_perturbed_mean))
+    max_y = max(mise_data_max, mise_data2_max)
+  } else {
+      max_y = max(c(mise_data$mise_original_mean, mise_data$mise_perturbed_mean))
+  }
   plot(NULL,
      xlim = c(min(bins_values), max(bins_values)),
      ylim = c(0, max_y),
-     ylab = "MISE",
-     xlab = "Number of bins",
-     main = main,
+     ylab = 'MISE',
      sub = sub)
   lines(mise_data$bins, mise_data$mise_original_mean, type = "l", lwd = lwd, col = colours[1])
   lines(mise_data$bins, mise_data$mise_perturbed_mean, type = "l", lwd = lwd, col = colours[2])
+  
+  if (!is.null(mise_data2))
+    lines(mise_data2$bins, mise_data2$mise_original_mean, type = "l", lwd = lwd, col = colours[3])
+    lines(mise_data2$bins, mise_data2$mise_perturbed_mean, type = "l", lwd = lwd, col = colours[4])
 }
 ```
 
@@ -412,7 +420,6 @@ For a small privacy ratio $\epsilon = 0.001$, we can see that the $MISE$ of the 
 One thing that is common across all 4 plots is that there is a decrease in the perturbed $MISE$ when moving from $5$ to $10$ bins. For $MISE$ that have $\epsilon = 0.1$, this initial decrease is then followed by a steady increase.
 
 ```{r echo=FALSE}
-
 plot_mise_lines = function(mise_data, n_values, eps_values, pi = NULL) {
   line_colours = rainbow_hcl(2)
  
@@ -439,10 +446,10 @@ plot_mise_lines = function(mise_data, n_values, eps_values, pi = NULL) {
   
   subtitles = c(subtitle1, subtitle2, subtitle3, subtitle4)
 
-  plot_mise_values(mise_data_1, main_title, subtitles[1], line_colours)
-  plot_mise_values(mise_data_2, main_title, subtitles[2], line_colours)
-  plot_mise_values(mise_data_3, main_title, subtitles[3], line_colours)
-  plot_mise_values(mise_data_4, main_title, subtitles[4], line_colours)
+  plot_mise_values(mise_data_1, main=main_title, sub = subtitles[1], colours=line_colours)
+  plot_mise_values(mise_data_2, main=main_title, sub = subtitles[2], colours=line_colours)
+  plot_mise_values(mise_data_3, main=main_title, sub = subtitles[3], colours=line_colours)
+  plot_mise_values(mise_data_4, main=main_title, sub = subtitles[4], colours=line_colours)
 
   # Plot the legend
   par(mai=c(0,0,0,0))
@@ -568,35 +575,81 @@ Finally, we create one subset of the data for each value of $\pi$. We do this be
 ### Plot pi = 0.5.
 
 ```{r echo=FALSE}
+plot_mise_lines2 = function(mise_data, mise_data2, n_values, eps_values, pi = NULL) {
+  line_colours = rainbow_hcl(4)
+ 
+  mise_data_1 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[1])
+  mise_data_2 = subset(mise_data, mise_data$n == n_values[1] & mise_data$eps == eps_values[2])
+  mise_data_3 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[1])
+  mise_data_4 = subset(mise_data, mise_data$n == n_values[2] & mise_data$eps == eps_values[2])
+  
+  mise_data2_1 = subset(mise_data2, mise_data2$n == n_values[1] & mise_data2$eps == eps_values[1])
+  mise_data2_2 = subset(mise_data2, mise_data2$n == n_values[1] & mise_data2$eps == eps_values[2])
+  mise_data2_3 = subset(mise_data2, mise_data2$n == n_values[2] & mise_data2$eps == eps_values[1])
+  mise_data2_4 = subset(mise_data2, mise_data2$n == n_values[2] & mise_data2$eps == eps_values[2])
+  # Create a layout for the 4 plots and the common legend
+  layout(matrix(c(1,2,5,3,4,5), ncol=2, nrow=3), heights=c(6, 6, 2))
+  main_title = paste("MISE values over", M, "Simulations.")
+  subtitle1 = paste("n = ", n_values[1], "eps = ", eps_values[1])
+  subtitle2 = paste("n = ", n_values[1], "eps = ", eps_values[2])
+  subtitle3 = paste("n = ", n_values[2], "eps = ", eps_values[1])
+  subtitle4 = paste("n = ", n_values[2], "eps = ", eps_values[2])
+  # Plot the 4 plots
+  if (!is.null(pi)) {
+      subtitle1 = paste(subtitle1, "pi = ", pi)
+      subtitle2 = paste(subtitle2, "pi = ", pi)
+      subtitle3 = paste(subtitle3, "pi = ", pi)
+      subtitle4 = paste(subtitle4, "pi = ", pi)
+  }
+  
+  subtitles = c(subtitle1, subtitle2, subtitle3, subtitle4)
+  plot_mise_values(mise_data_1, mise_data2_1, main_title, subtitles[1], line_colours)
+  plot_mise_values(mise_data_2, mise_data2_2, main_title, subtitles[2], line_colours)
+  plot_mise_values(mise_data_3, mise_data2_3, main_title, subtitles[3], line_colours)
+  plot_mise_values(mise_data_4, mise_data2_4, main_title, subtitles[4], line_colours)
+  # Plot the legend
+  par(mai=c(0,0,0,0))
+  plot.new()
+  legend("center",
+         legend = c(TeX("$MISE(p_X, \\hat{p}_{n,m}) (pure)$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m}) (pure)$"), TeX("$MISE(p_X, \\hat{p}_{n,m}) (mixed)$"), TeX("$MISE(p_X, \\hat{q}_{\\epsilon, m}) (mixed)$")),
+         col = line_colours,
+         lwd = 3,
+         xpd = TRUE,
+         horiz = TRUE,
+         cex = 1,
+         seg.len=2)
+}
+
 pi_05 = subset(mise_data_group_pi, mise_data_group_pi$pi == 0.5)
-plot_mise_lines(pi_05, n_values, eps_values, pi = 0.5)
+plot_mise_lines2(mise_data_group, pi_05, n = n_values, eps = eps_values)
 ```
 
-## 2.3 Data Collection
+# 2.3 Data Collection
 
-For this exercise we decided to carry out an analysis of alcohol consumption during the weekend on average. To do this we created a form on Google asking a simple question: "How much do you spend on drinks at the weekend ?" and shared it with our friends and acquaintances collecting a total of 80 answers. At this point we privatized the data collection using the perturbed histogram approach. We chose the following parameters:
+For this exercise we decided to carry out an analysis of alcohol consumption during the weekend among our colleagues. To do this we created a form on Google asking a simple question: "How much do you spend on drinks at the weekend ?" and shared it with our friends and acquaintances collecting a total of 80 answers. At this point we privatized the data collection using the perturbed histogram approach. We chose the following parameters:
 
 -   $m=n^{d/(2+d)}$ where $\large m$ is the number of bins of the histograms and $\large n$ is the length of the sample size (in this case it is 80).
 -   $\large \epsilon =0.1$ we chose this $\large \epsilon$ so that the data would be quite privatized, but without losing the relevant statistics adding too much noise.
 -   $\large k=80$ the number of samples got from the perturbed histogram equal to $n$.
 
 ```{r}
-dataframe <- read.csv('Survey.csv') ## read rhe dataframe created from the survey
+dataframe <- read.csv('Survey.csv') ## read the dataframe created from the survey
 
 ## rename the columns
 colnames(dataframe)[1]='People' 
 colnames(dataframe)[2]='Money'
 dataframe <- subset(dataframe,dataframe[2]<30)
 
-summary(dataframe) ## main statistics 
+summary(dataframe$Money) ## main statistics 
 ```
 
+We pick some hyperparameters:
+
 ```{r}
-#Hyperparameters chosen 
-n=length(dataframe$Money)
+n = length(dataframe$Money)
 m = n^(1 / (2 + 1))
 eps=0.1
-k=80
+k = 80
 ```
 
 ```{r}
@@ -604,7 +657,7 @@ k=80
 survey_hist <- hist((dataframe$'Money'),breaks=m,plot=F)
 
 ## Perturbe the histogram with the same  function of 2.1
-survey_perturbe <- l_perturbe(survey_hist,l_scale = 8/(eps)^2)
+survey_perturbe <- l_perturbe(survey_hist,variance = 8/(eps)^2)
 ```
 
 ```{r}
@@ -614,32 +667,33 @@ dataframe_perturbe <- data.frame(people=seq(1,k),money=sample_survey_hist) ## cr
 write.csv(dataframe_perturbe,'Priv_Data',row.names = F) # save the new dataframe in a csv file
 ```
 
-What happen upon privatization? Well, the new dataset created via the perturbed histogram will present new values for each respondent making it impossible to determine who said what. However, the main statistics/summaries are preserved net of a small loss. The main statistics to reproduce are: mean, 1st/3rd quantile, median and mode.
+What happen upon privatization? Well, the new dataset created via the perturbed histogram will present new values for each respondent making it impossible to determine who said what. However, the main statistics/summaries are preserved net of a small loss.
+
+#### The main statistics to reproduce are: mean, 1st/3rd quantile, median and mode.
 
 ```{r}
 df_perturbed=read.csv('Priv_Data')
-summary(df_perturbed)
+summary(df_perturbed$money)
 ```
 
-## 2.4 Bonus
+# 2.4 Bonus
 
 We want to perform some simulations to test whether our mechanism ensures $\epsilon$ differential privacy:
 
 ```{r}
 n.sim = 100
 ratio = numeric(n.sim)
-eps = .1
+eps = 1
 
 for (i in 1:n.sim) {
-  h = hist(rbeta(1e5,10,10), breaks=floor(1e5^(1/3)),plot=F)
+  h = hist(rbeta(1e5,10,10), breaks=10,plot=F)
   h$density = h$density/2
   h_p = l_perturbe(h,variance=8/eps^2)
 
   diff = max( h$density[h_p$density!=0]/h_p$density[h_p$density!=0] )
-  #plot(h, freq=F, c=rgb(1,0,0))
-  #plot(h_p, freq=F, add=T, c= rgb(0,1,0,0.5))
   ratio[i] = diff
 }
+
 sum(ratio <= exp(eps)) / n.sim
 ```
 
